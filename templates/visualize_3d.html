@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Neural Network Visualizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { 
+            font-family: 'Roboto', Arial, sans-serif; 
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            color: #333;
+            overflow: hidden;
+        }
+          .navbar {
+            background-color: #333;
+            background-image: linear-gradient(to right, #434343 0%, #000000 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 60px;
+        }
+        
+        .navbar h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            flex-shrink: 0;
+            max-width: 60%;
+            overflow: hidden;            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .view-toggles {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            flex-shrink: 0;
+        }        .view-btn {
+            padding: 0.5rem 0.8rem;
+            border: 2px solid #667eea;
+            background: transparent;
+            color: #667eea;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        
+        .view-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+        
+        .view-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .controls-panel {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            min-width: 280px;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+        }
+        
+        .controls-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .controls-section h3 {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.9rem;
+            color: #495057;
+            font-weight: 600;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 0.5rem;
+        }
+        
+        .model-selector {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .ctrl-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin: 0.2rem;
+            transition: all 0.2s ease;
+        }
+        
+        .ctrl-btn:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+        
+        .ctrl-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .view-mode-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+        
+        .view-mode-btn {
+            flex: 1;
+            min-width: 60px;
+            font-size: 0.75rem;
+            padding: 0.3rem 0.5rem;
+        }
+        
+        .view-mode-btn.active {
+            background-color: #28a745;
+        }
+        
+        .slider-control {
+            margin-bottom: 0.75rem;
+        }
+        
+        .slider-control label {
+            display: block;
+            font-size: 0.8rem;
+            color: #495057;
+            margin-bottom: 0.3rem;
+        }
+        
+        .slider-control input[type="range"] {
+            width: 100%;
+            margin-bottom: 0.3rem;
+        }
+        
+        .slider-value {
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-align: center;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 100px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            min-width: 220px;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .info-panel.active {
+            display: block;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .info-value {
+            color: #007bff;
+            font-weight: 500;
+        }
+        
+        .node-info {
+            background: rgba(0, 123, 255, 0.1);
+            border: 1px solid #007bff;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .canvas-container {
+            position: fixed;
+            top: 80px;
+            left: 0;
+            width: 100vw;
+            height: calc(100vh - 80px);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            color: white;
+            font-size: 1.2rem;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #f8d7da;
+            color: #721c24;
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+            z-index: 10001;
+            max-width: 80%;
+            text-align: center;
+        }
+        
+        .minimize-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            color: #6c757d;
+        }
+        
+        .minimize-btn:hover {
+            color: #495057;
+        }
+        
+        .controls-panel.minimized {
+            height: 40px;
+            overflow: hidden;
+        }
+        
+        .controls-panel.minimized .controls-content {
+            display: none;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            max-width: 300px;
+        }
+        
+        .legend h4 {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.9rem;
+            color: #495057;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+            margin-right: 0.5rem;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        @media (max-width: 768px) {
+            .controls-panel, .info-panel {
+                position: fixed;
+                top: 100px;
+                left: 10px;
+                right: 10px;            max-height: 200px;
+            }
+            
+            .view-toggles {
+                position: static;
+                margin-top: 0.5rem;
+                text-align: center;
+            }
+            
+            .legend {
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>    <nav class="navbar">
+        <h1>3D Neural Network Visualizer</h1>        <div class="view-toggles">
+            <a href="/" class="view-btn">2D View</a>
+            <a href="/visualize_3d" class="view-btn active">3D View</a>
+            <a href="/visualize_hierarchical" class="view-btn">Hierarchical</a>
+            <a href="/visualize_force" class="view-btn">Force-Directed</a>
+            <a href="/visualize_interactive" class="view-btn">Interactive</a>
+            <a href="/analytics_dashboard" class="view-btn">Analytics</a>
+        </div>
+    </nav>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        Loading 3D visualization...
+    </div>
+
+    <div class="controls-panel" id="controlsPanel">
+        <button class="minimize-btn" onclick="togglePanel('controlsPanel')">−</button>
+        <div class="controls-content">
+            <div class="controls-section">
+                <h3>🎯 Model Selection</h3>
+                <select class="model-selector" id="modelSelector" onchange="loadModel()">
+                    <option value="">Choose a model file...</option>
+                    {% for file in model_files %}
+                        <option value="{{ file }}">{{ file }}</option>
+                    {% endfor %}
+                </select>
+                <button class="ctrl-btn" onclick="loadModel()">Load Model</button>
+            </div>
+
+            <div class="controls-section">
+                <h3>🎨 View Modes</h3>
+                <div class="view-mode-selector">
+                    <button class="ctrl-btn view-mode-btn active" onclick="setViewMode('3d')" data-mode="3d">3D</button>
+                    <button class="ctrl-btn view-mode-btn" onclick="setViewMode('hierarchical')" data-mode="hierarchical">Tree</button>
+                    <button class="ctrl-btn view-mode-btn" onclick="setViewMode('force')" data-mode="force">Force</button>
+                    <button class="ctrl-btn view-mode-btn" onclick="setViewMode('circular')" data-mode="circular">Circular</button>
+                </div>
+            </div>
+
+            <div class="controls-section">
+                <h3>⚙️ 3D Controls</h3>
+                <div class="slider-control">
+                    <label>Node Size</label>
+                    <input type="range" id="nodeSizeSlider" min="0.5" max="5" value="2" step="0.1" oninput="updateNodeSize(this.value)">
+                    <div class="slider-value" id="nodeSizeValue">2.0</div>
+                </div>
+                
+                <div class="slider-control">
+                    <label>Spread Factor</label>
+                    <input type="range" id="spreadSlider" min="50" max="500" value="150" step="10" oninput="updateSpread(this.value)">
+                    <div class="slider-value" id="spreadValue">150</div>
+                </div>
+                
+                <div class="slider-control">
+                    <label>Animation Speed</label>
+                    <input type="range" id="animationSlider" min="0" max="2" value="1" step="0.1" oninput="updateAnimation(this.value)">
+                    <div class="slider-value" id="animationValue">1.0</div>
+                </div>
+            </div>
+
+            <div class="controls-section">
+                <h3>🔧 Actions</h3>
+                <button class="ctrl-btn" onclick="resetCamera()">🎥 Reset View</button>
+                <button class="ctrl-btn" onclick="toggleAnimation()">▶️ Animate</button>
+                <button class="ctrl-btn" onclick="toggleInfo()">ℹ️ Info</button>
+                <button class="ctrl-btn" onclick="exportImage()">📷 Export</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-panel" id="infoPanel">
+        <button class="minimize-btn" onclick="togglePanel('infoPanel')">✕</button>
+        <h3>📊 Model Information</h3>
+        <div class="info-item">
+            <span class="info-label">Model:</span>
+            <span class="info-value" id="modelName">None</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Layers:</span>
+            <span class="info-value" id="layerCount">0</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Parameters:</span>
+            <span class="info-value" id="paramCount">0</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Type:</span>
+            <span class="info-value" id="modelType">Unknown</span>
+        </div>
+        <div id="nodeInfo" class="node-info" style="display: none;">
+            <strong>Selected Node:</strong><br>
+            <span id="selectedNodeInfo">Click on a node to see details</span>
+        </div>
+    </div>
+
+    <div class="legend">
+        <h4>🎨 Layer Types</h4>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #2196F3;"></div>
+            <span>Linear/Dense</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #9C27B0;"></div>
+            <span>Convolution</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #FF9800;"></div>
+            <span>Activation</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #F44336;"></div>
+            <span>Dropout</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #4CAF50;"></div>
+            <span>Transformer</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #9E9E9E;"></div>
+            <span>Other</span>
+        </div>
+    </div>
+
+    <div class="canvas-container" id="canvasContainer"></div>
+
+    <script>
+        // Global variables
+        let scene, camera, renderer, controls;
+        let modelData = null;
+        let nodeObjects = [];
+        let edgeObjects = [];
+        let currentViewMode = '3d';
+        let animationEnabled = false;
+        let animationSpeed = 1.0;
+        let nodeSize = 2.0;
+        let spreadFactor = 150;
+        let raycaster, mouse;
+        let selectedNode = null;
+
+        // Initialize Three.js scene
+        function initThreeJS() {
+            const container = document.getElementById('canvasContainer');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 2000);
+            camera.position.set(200, 200, 200);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+            
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 50;
+            controls.maxDistance = 1000;
+            controls.maxPolarAngle = Math.PI;
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(200, 200, 200);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            const pointLight = new THREE.PointLight(0x4fc3f7, 0.5, 500);
+            pointLight.position.set(-100, 100, 100);
+            scene.add(pointLight);
+            
+            // Raycaster for mouse interactions
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // Event listeners
+            window.addEventListener('resize', onWindowResize, false);
+            renderer.domElement.addEventListener('click', onMouseClick, false);
+            renderer.domElement.addEventListener('mousemove', onMouseMove, false);
+            
+            // Animation loop
+            animate();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvasContainer');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function onMouseClick(event) {
+            const container = document.getElementById('canvasContainer');
+            const rect = container.getBoundingClientRect();
+            
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodeObjects);
+            
+            if (intersects.length > 0) {
+                selectNode(intersects[0].object);
+            } else {
+                deselectNode();
+            }
+        }
+
+        function onMouseMove(event) {
+            const container = document.getElementById('canvasContainer');
+            const rect = container.getBoundingClientRect();
+            
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodeObjects);
+            
+            // Change cursor
+            container.style.cursor = intersects.length > 0 ? 'pointer' : 'default';
+        }
+
+        function selectNode(nodeObj) {
+            // Reset previous selection
+            if (selectedNode) {
+                selectedNode.material.emissive.setHex(0x000000);
+            }
+            
+            // Highlight new selection
+            selectedNode = nodeObj;
+            selectedNode.material.emissive.setHex(0x444444);
+            
+            // Show node info
+            const nodeData = selectedNode.userData;
+            document.getElementById('selectedNodeInfo').innerHTML = `
+                <strong>${nodeData.label}</strong><br>
+                Type: ${nodeData.type}<br>
+                ${nodeData.input_size ? `Input: ${nodeData.input_size}` : ''}<br>
+                ${nodeData.output_size ? `Output: ${nodeData.output_size}` : ''}
+            `;
+            document.getElementById('nodeInfo').style.display = 'block';
+        }
+
+        function deselectNode() {
+            if (selectedNode) {
+                selectedNode.material.emissive.setHex(0x000000);
+                selectedNode = null;
+            }
+            document.getElementById('nodeInfo').style.display = 'none';
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Animation rotation
+            if (animationEnabled && nodeObjects.length > 0) {
+                const time = Date.now() * 0.001 * animationSpeed;
+                nodeObjects.forEach((node, index) => {
+                    node.rotation.y = time + index * 0.1;
+                    node.position.y += Math.sin(time + index) * 0.1;
+                });
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Load model data from API
+        async function loadModel() {
+            const modelFile = document.getElementById('modelSelector').value;
+            if (!modelFile) {
+                alert('Please select a model file first.');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`/api/model_data_3d?model_file=${encodeURIComponent(modelFile)}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                modelData = await response.json();
+                
+                if (modelData.error) {
+                    throw new Error(modelData.error);
+                }
+                
+                // Update UI
+                updateModelInfo();
+                visualizeModel();
+                
+            } catch (error) {
+                console.error('Error loading model:', error);
+                showError(`Error loading model: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function updateModelInfo() {
+            if (!modelData) return;
+            
+            document.getElementById('modelName').textContent = modelData.model_name || 'Unknown';
+            document.getElementById('layerCount').textContent = modelData.metadata.num_layers || 0;
+            document.getElementById('paramCount').textContent = (modelData.metadata.total_parameters || 0).toLocaleString();
+            document.getElementById('modelType').textContent = modelData.metadata.model_type || 'Unknown';
+        }
+
+        function visualizeModel() {
+            if (!modelData) return;
+            
+            // Clear existing visualization
+            clearScene();
+            
+            // Create nodes
+            createNodes();
+            
+            // Create edges
+            createEdges();
+            
+            // Apply current view mode
+            applyViewMode();
+        }
+
+        function clearScene() {
+            // Remove existing objects
+            nodeObjects.forEach(obj => scene.remove(obj));
+            edgeObjects.forEach(obj => scene.remove(obj));
+            nodeObjects = [];
+            edgeObjects = [];
+            selectedNode = null;
+        }
+
+        function createNodes() {
+            const geometry = new THREE.SphereGeometry(nodeSize, 16, 16);
+            
+            modelData.nodes.forEach(node => {
+                const color = new THREE.Color(node.color);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: color,
+                    shininess: 100,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(node.position.x, node.position.y, node.position.z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.userData = node;
+                
+                // Add text label
+                const loader = new THREE.FontLoader();
+                // For now, use simple text geometry or canvas texture
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 256;
+                canvas.height = 64;
+                context.fillStyle = 'white';
+                context.font = '20px Arial';
+                context.textAlign = 'center';
+                context.fillText(node.label.split('\\n')[0], 128, 40);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.position.set(mesh.position.x, mesh.position.y + nodeSize * 2, mesh.position.z);
+                sprite.scale.set(20, 5, 1);
+                
+                scene.add(mesh);
+                scene.add(sprite);
+                nodeObjects.push(mesh);
+            });
+        }
+
+        function createEdges() {
+            modelData.edges.forEach(edge => {
+                const sourceNode = modelData.nodes.find(n => n.id === edge.source);
+                const targetNode = modelData.nodes.find(n => n.id === edge.target);
+                
+                if (sourceNode && targetNode) {
+                    const geometry = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(sourceNode.position.x, sourceNode.position.y, sourceNode.position.z),
+                        new THREE.Vector3(targetNode.position.x, targetNode.position.y, targetNode.position.z)
+                    ]);
+                    
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: edge.type === 'hierarchical' ? 0x666666 : 0x999999,
+                        transparent: true,
+                        opacity: 0.6
+                    });
+                    
+                    const line = new THREE.Line(geometry, material);
+                    scene.add(line);
+                    edgeObjects.push(line);
+                }
+            });
+        }
+
+        function applyViewMode() {
+            if (!modelData) return;
+            
+            switch (currentViewMode) {
+                case '3d':
+                    apply3DLayout();
+                    break;
+                case 'hierarchical':
+                    applyHierarchicalLayout();
+                    break;
+                case 'force':
+                    applyForceLayout();
+                    break;
+                case 'circular':
+                    applyCircularLayout();
+                    break;
+            }
+        }
+
+        function apply3DLayout() {
+            // Use original positions from model data
+            nodeObjects.forEach((mesh, index) => {
+                const node = modelData.nodes[index];
+                mesh.position.set(node.position.x, node.position.y, node.position.z);
+            });
+        }
+
+        function applyHierarchicalLayout() {
+            // Arrange nodes in hierarchical tree structure
+            const maxDepth = Math.max(...modelData.nodes.map(n => n.depth));
+            
+            nodeObjects.forEach((mesh, index) => {
+                const node = modelData.nodes[index];
+                const x = (index % 5) * spreadFactor - (5 * spreadFactor / 2);
+                const y = (maxDepth - node.depth) * spreadFactor;
+                const z = Math.floor(index / 5) * spreadFactor - spreadFactor;
+                
+                mesh.position.set(x, y, z);
+            });
+        }
+
+        function applyForceLayout() {
+            // Simple force-directed layout simulation
+            const centerX = 0, centerY = 0, centerZ = 0;
+            const radius = spreadFactor;
+            
+            nodeObjects.forEach((mesh, index) => {
+                const angle1 = (index / nodeObjects.length) * Math.PI * 2;
+                const angle2 = Math.cos(index * 0.5) * Math.PI;
+                
+                const x = centerX + radius * Math.cos(angle1) * Math.sin(angle2);
+                const y = centerY + radius * Math.cos(angle2);
+                const z = centerZ + radius * Math.sin(angle1) * Math.sin(angle2);
+                
+                mesh.position.set(x, y, z);
+            });
+        }
+
+        function applyCircularLayout() {
+            // Arrange nodes in circular patterns by layer depth
+            const layers = {};
+            modelData.nodes.forEach(node => {
+                if (!layers[node.depth]) layers[node.depth] = [];
+                layers[node.depth].push(node);
+            });
+            
+            Object.keys(layers).forEach(depth => {
+                const layerNodes = layers[depth];
+                const radius = (parseInt(depth) + 1) * spreadFactor;
+                
+                layerNodes.forEach((node, index) => {
+                    const angle = (index / layerNodes.length) * Math.PI * 2;
+                    const nodeIndex = modelData.nodes.indexOf(node);
+                    const mesh = nodeObjects[nodeIndex];
+                    
+                    if (mesh) {
+                        const x = radius * Math.cos(angle);
+                        const y = parseInt(depth) * 50;
+                        const z = radius * Math.sin(angle);
+                        mesh.position.set(x, y, z);
+                    }
+                });
+            });
+        }
+
+        // UI Control Functions
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            
+            // Update button states
+            document.querySelectorAll('.view-mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+            
+            // Apply layout
+            applyViewMode();
+        }
+
+        function updateNodeSize(value) {
+            nodeSize = parseFloat(value);
+            document.getElementById('nodeSizeValue').textContent = value;
+            
+            // Update existing nodes
+            nodeObjects.forEach(mesh => {
+                mesh.scale.setScalar(nodeSize / 2);
+            });
+        }
+
+        function updateSpread(value) {
+            spreadFactor = parseInt(value);
+            document.getElementById('spreadValue').textContent = value;
+            applyViewMode();
+        }
+
+        function updateAnimation(value) {
+            animationSpeed = parseFloat(value);
+            document.getElementById('animationValue').textContent = value;
+        }
+
+        function resetCamera() {
+            camera.position.set(200, 200, 200);
+            camera.lookAt(0, 0, 0);
+            controls.reset();
+        }
+
+        function toggleAnimation() {
+            animationEnabled = !animationEnabled;
+            const btn = event.target;
+            btn.textContent = animationEnabled ? '⏸️ Pause' : '▶️ Animate';
+        }
+
+        function toggleInfo() {
+            const panel = document.getElementById('infoPanel');
+            panel.classList.toggle('active');
+        }
+
+        function togglePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            panel.classList.toggle('minimized');
+            
+            const btn = panel.querySelector('.minimize-btn');
+            btn.textContent = panel.classList.contains('minimized') ? '+' : (panelId === 'infoPanel' ? '✕' : '−');
+        }
+
+        function exportImage() {
+            const link = document.createElement('a');
+            link.download = 'neural_network_3d.png';
+            link.href = renderer.domElement.toDataURL();
+            link.click();
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = `
+                <h3>Error</h3>
+                <p>${message}</p>
+                <button onclick="this.parentElement.remove()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
+            `;
+            document.body.appendChild(errorDiv);
+            
+            setTimeout(() => {
+                if (errorDiv.parentElement) {
+                    errorDiv.remove();
+                }
+            }, 5000);
+        }        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            showLoading(false);
+            initThreeJS();
+            
+            // Check for model_file parameter in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const modelFile = urlParams.get('model_file');
+            
+            if (modelFile) {
+                // Set the selected model and load it
+                const modelSelect = document.getElementById('modelSelector');
+                for (let i = 0; i < modelSelect.options.length; i++) {
+                    if (modelSelect.options[i].value === modelFile) {
+                        modelSelect.selectedIndex = i;
+                        loadModel();
+                        break;
+                    }
+                }
+            } else {
+                // Auto-load first model if available
+                const modelSelect = document.getElementById('modelSelector');
+                if (modelSelect.options.length > 1) {
+                    modelSelect.selectedIndex = 1;
+                    loadModel();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

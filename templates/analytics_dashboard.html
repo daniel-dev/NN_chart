@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NN Analytics Dashboard - Neural Network Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+
+        .navbar h1 {
+            color: #4a5568;
+            font-size: 1.5rem;
+            font-weight: 600;
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .view-toggles {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .view-btn {
+            padding: 0.5rem 0.8rem;
+            border: 2px solid #667eea;
+            background: transparent;
+            color: #667eea;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        .view-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .view-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .container {
+            margin-top: 90px;
+            padding: 2rem;
+            min-height: calc(100vh - 90px);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .analytics-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .analytics-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .card-content {
+            min-height: 300px;
+        }
+
+        .model-selector {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .selector-row {
+            display: flex;
+            gap: 1rem;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .selector-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .selector-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        select, button {
+            width: 100%;
+            padding: 0.7rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: 2px solid #667eea;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .metric-item {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+            display: block;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: #718096;
+            margin-top: 0.25rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 250px;
+            margin-top: 1rem;
+        }
+
+        .layer-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .layer-item {
+            padding: 0.8rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .layer-item:hover {
+            background: rgba(102, 126, 234, 0.05);
+            border-color: #667eea;
+        }
+
+        .layer-name {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .layer-details {
+            font-size: 0.85rem;
+            color: #718096;
+            margin-top: 0.25rem;
+        }
+
+        .suggestion {
+            padding: 0.8rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid;
+        }
+
+        .suggestion.warning {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: #ffc107;
+        }
+
+        .suggestion.info {
+            background: rgba(23, 162, 184, 0.1);
+            border-color: #17a2b8;
+        }
+
+        .suggestion.suggestion {
+            background: rgba(40, 167, 69, 0.1);
+            border-color: #28a745;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #718096;
+        }
+
+        .spinner {
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #667eea;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .comparison-table th {
+            background: rgba(102, 126, 234, 0.1);
+            font-weight: 600;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            margin: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .selector-row {
+                flex-direction: column;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <h1>🧠 NN Analytics Dashboard</h1>
+        <div class="view-toggles">
+            <a href="/" class="view-btn">2D View</a>
+            <a href="/visualize_3d" class="view-btn">3D View</a>
+            <a href="/visualize_hierarchical" class="view-btn">Hierarchical</a>
+            <a href="/visualize_force" class="view-btn">Force-Directed</a>
+            <a href="/visualize_interactive" class="view-btn">Interactive</a>
+            <a href="/analytics_dashboard" class="view-btn active">Analytics</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Model Selection -->
+        <div class="model-selector">
+            <div class="selector-row">
+                <div class="selector-group">
+                    <label for="modelSelect">Select Model for Analysis:</label>
+                    <select id="modelSelect">
+                        <option value="">Choose a model...</option>
+                        {% for model_file in model_files %}
+                        <option value="{{ model_file }}">{{ model_file }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="selector-group">
+                    <label for="comparisonModel">Compare With (Optional):</label>
+                    <select id="comparisonModel">
+                        <option value="">Select for comparison...</option>
+                        {% for model_file in model_files %}
+                        <option value="{{ model_file }}">{{ model_file }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="selector-group">
+                    <label>&nbsp;</label>
+                    <button onclick="loadAnalysis()">🔍 Analyze Model</button>
+                </div>
+                <div class="selector-group">
+                    <label>&nbsp;</label>
+                    <button onclick="compareModels()">📊 Compare Models</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Model Overview -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3 class="card-title">📋 Model Overview</h3>
+                    <button onclick="refreshOverview()">🔄 Refresh</button>
+                </div>
+                <div class="card-content">
+                    <div id="modelOverview">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Select a model to view overview</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layer Analysis -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3 class="card-title">🏗️ Layer Analysis</h3>
+                    <select id="layerSortBy" onchange="sortLayers()">
+                        <option value="name">Sort by Name</option>
+                        <option value="parameters">Sort by Parameters</option>
+                        <option value="memory">Sort by Memory</option>
+                    </select>
+                </div>
+                <div class="card-content">
+                    <div id="layerAnalysis">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Loading layer analysis...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>            <!-- Weight Distribution -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3 class="card-title">📈 Weight Distribution</h3>
+                    <select id="weightLayer" onchange="updateWeightChart()">
+                        <option value="">Select layer...</option>
+                    </select>
+                </div>
+                <div class="card-content">
+                    <div id="weightChartContainer">
+                        <div class="loading" id="weightChartLoading" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>Loading weight statistics...</p>
+                        </div>
+                        <div class="chart-container" id="weightChartCanvas" style="display: block;">
+                            <canvas id="weightChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3 class="card-title">⚡ Performance Metrics</h3>
+                    <button onclick="benchmarkModel()">🚀 Run Benchmark</button>
+                </div>
+                <div class="card-content">
+                    <div id="performanceMetrics">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Click "Run Benchmark" to analyze</p>
+                        </div>
+                    </div>
+                </div>
+            </div>            <!-- Memory Analysis -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3 class="card-title">💾 Memory Analysis</h3>
+                    <select id="memoryView" onchange="updateMemoryView()">
+                        <option value="breakdown">Memory Breakdown</option>
+                        <option value="efficiency">Memory Efficiency</option>
+                    </select>
+                </div>
+                <div class="card-content">
+                    <div id="memoryChartContainer">
+                        <div class="loading" id="memoryChartLoading" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>Loading memory analysis...</p>
+                        </div>
+                        <div class="chart-container" id="memoryChartCanvas" style="display: block;">
+                            <canvas id="memoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Optimization Suggestions -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3 class="card-title">💡 Optimization Suggestions</h3>
+                    <button onclick="generateSuggestions()">💡 Generate</button>
+                </div>
+                <div class="card-content">
+                    <div id="optimizationSuggestions">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Click "Generate" for optimization tips</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Model Health Check -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3 class="card-title">🩺 Model Health Check</h3>
+                    <button onclick="runHealthCheck()">🔍 Check Health</button>
+                </div>
+                <div class="card-content">
+                    <div id="healthCheck">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Click "Check Health" to analyze</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Training Insights -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3 class="card-title">🎯 Training Insights</h3>
+                    <button onclick="analyzeTraining()">📊 Analyze</button>
+                </div>
+                <div class="card-content">
+                    <div id="trainingInsights">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Click "Analyze" for training insights</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Comparison Section -->
+        <div id="comparisonSection" style="display: none;">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h3 class="card-title">🔄 Model Comparison</h3>
+                    <button onclick="hideComparison()">❌ Hide</button>
+                </div>
+                <div class="card-content">
+                    <div id="comparisonResults"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentModelData = null;
+        let currentAnalysis = null;
+        let weightChart = null;
+        let memoryChart = null;
+
+        // Load complete analysis for a model
+        async function loadAnalysis() {
+            const modelName = document.getElementById('modelSelect').value;
+            if (!modelName) {
+                alert('Please select a model first');
+                return;
+            }
+
+            showLoading();            try {
+                // Load model analysis using the correct endpoints
+                const analysisResponse = await fetch(`/api/model_insights_summary/${encodeURIComponent(modelName)}`);
+                currentAnalysis = await analysisResponse.json();
+
+                if (currentAnalysis.error) {
+                    throw new Error(currentAnalysis.error);
+                }                // Load additional layer insights (fix structure)
+                const layerResponse = await fetch(`/api/layer_insights/${encodeURIComponent(modelName)}`);
+                const layerData = await layerResponse.json();
+                // Convert list format to expected object format
+                currentAnalysis.layer_insights = {
+                    layer_details: Array.isArray(layerData) ? layerData : layerData.layer_details || [],
+                    bottlenecks: layerData.bottlenecks || [],
+                    redundancies: layerData.redundancies || [],
+                    recommendations: layerData.recommendations || []
+                };
+
+                // Load weight analysis
+                const weightResponse = await fetch(`/api/weight_analysis/${encodeURIComponent(modelName)}`);
+                const weightData = await weightResponse.json();
+                currentAnalysis.weight_analysis = weightData;                // Update all dashboard components
+                updateModelOverview();
+                updateLayerAnalysis();
+                updateWeightCharts();
+                updateMemoryView();
+                updateOptimizationSuggestions();
+
+                hideLoading();
+            } catch (error) {
+                console.error('Error loading analysis:', error);
+                alert('Error loading analysis: ' + error.message);
+                hideLoading();
+            }
+        }        // Update model overview
+        function updateModelOverview() {
+            if (!currentAnalysis) return;
+
+            const modelOverviewElement = document.getElementById('modelOverview');
+            if (!modelOverviewElement) {
+                console.error('modelOverview element not found');
+                return;
+            }
+
+            const basicInfo = currentAnalysis.basic_info;
+            const efficiency = currentAnalysis.efficiency_metrics;
+            const healthScore = currentAnalysis.health_score;
+
+            const html = `
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <span class="metric-value">${(basicInfo.total_parameters / 1000000).toFixed(2)}M</span>
+                        <div class="metric-label">Total Parameters</div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-value">${(basicInfo.trainable_parameters / 1000000).toFixed(2)}M</span>
+                        <div class="metric-label">Trainable Parameters</div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-value">${basicInfo.num_layers}</span>
+                        <div class="metric-label">Model Layers</div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-value">${basicInfo.memory_footprint_mb.toFixed(1)} MB</span>
+                        <div class="metric-label">Memory Usage</div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-value">${efficiency.overall_efficiency.toFixed(1)}%</span>
+                        <div class="metric-label">Efficiency Score</div>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-value">${healthScore.overall_score ? healthScore.overall_score.toFixed(1) : 'N/A'}</span>
+                        <div class="metric-label">Health Score</div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <strong>🏗️ Architecture Summary:</strong>
+                    <ul style="margin-left: 1rem; margin-top: 0.5rem;">
+                        <li>📐 Model Type: ${basicInfo.model_type}</li>
+                        <li>⚖️ Parameter efficiency: ${efficiency.parameter_efficiency.toFixed(1)}%</li>
+                        <li>💾 Memory efficiency: ${efficiency.memory_efficiency.toFixed(1)}%</li>
+                        <li>🎯 Architecture: ${currentAnalysis.architecture_patterns.architecture_type || 'Unknown'}</li>
+                    </ul>
+                </div>
+            `;
+
+            modelOverviewElement.innerHTML = html;
+        }        // Update layer analysis
+        function updateLayerAnalysis() {
+            if (!currentAnalysis || !currentAnalysis.layer_insights) return;
+
+            const layers = currentAnalysis.layer_insights.layer_details || [];
+            const layerSelect = document.getElementById('weightLayer');
+            
+            if (!layerSelect) {
+                console.error('weightLayer element not found');
+                return;
+            }
+            
+            // Update weight layer selector
+            layerSelect.innerHTML = '<option value="">Select layer...</option>';
+            layers.forEach(layer => {
+                layerSelect.innerHTML += `<option value="${layer.name}">${layer.name}</option>`;
+            });
+
+            const layerAnalysisElement = document.getElementById('layerAnalysis');
+            if (!layerAnalysisElement) {
+                console.error('layerAnalysis element not found');
+                return;
+            }
+
+            // Create layer list
+            let html = '<div class="layer-list">';
+            layers.forEach(layer => {
+                const paramCount = layer.parameters || 0;
+                const paramStr = paramCount > 1000000 ? 
+                    `${(paramCount / 1000000).toFixed(2)}M` : 
+                    `${(paramCount / 1000).toFixed(1)}K`;
+
+                const typeIcon = getLayerTypeIcon(layer.type);
+                const efficiencyClass = layer.efficiency_score > 80 ? 'high' : layer.efficiency_score > 50 ? 'medium' : 'low';
+
+                html += `
+                    <div class="layer-item ${efficiencyClass}" onclick="showLayerDetails('${layer.name}')">
+                        <div class="layer-name">${typeIcon} ${layer.name}</div>
+                        <div class="layer-details">
+                            Type: ${layer.type} | Parameters: ${paramStr}
+                            ${layer.input_size ? ` | Input: ${layer.input_size}` : ''}
+                            ${layer.output_size ? ` | Output: ${layer.output_size}` : ''}
+                            | Efficiency: ${layer.efficiency_score.toFixed(1)}%
+                            ${layer.bottleneck_risk ? ' ⚠️ Bottleneck' : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            // Add bottleneck warnings
+            if (currentAnalysis.layer_insights.bottlenecks && Array.isArray(currentAnalysis.layer_insights.bottlenecks) && currentAnalysis.layer_insights.bottlenecks.length > 0) {
+                const bottleneckItems = currentAnalysis.layer_insights.bottlenecks.map(b => `<li>${b}</li>`).join('');
+                html += `
+                    <div class="warning-box">
+                        <h4>⚠️ Detected Bottlenecks:</h4>
+                        <ul>
+                            ${bottleneckItems}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // Add recommendations
+            if (currentAnalysis.layer_insights.recommendations && Array.isArray(currentAnalysis.layer_insights.recommendations) && currentAnalysis.layer_insights.recommendations.length > 0) {
+                const recommendationItems = currentAnalysis.layer_insights.recommendations.map(r => `<li>${r}</li>`).join('');
+                html += `
+                    <div class="recommendations-box">
+                        <h4>💡 Recommendations:</h4>
+                        <ul>
+                            ${recommendationItems}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            layerAnalysisElement.innerHTML = html;
+        }
+
+        // Get layer type icon
+        function getLayerTypeIcon(type) {
+            const icons = {
+                'Linear': '🔗',
+                'Conv2d': '🎭',
+                'ReLU': '⚡',
+                'Dropout': '🎲',
+                'BatchNorm1d': '📊',
+                'BatchNorm2d': '📊',
+                'Embedding': '📝',
+                'TransformerEncoder': '🤖',
+                'TransformerEncoderLayer': '🧠'
+            };
+            return icons[type] || '⚙️';
+        }        // Update weight distribution charts
+        function updateWeightCharts() {
+            if (!currentAnalysis) return;
+
+            // Initialize weight distribution chart with a helpful placeholder
+            const canvas = document.getElementById('weightChart');
+            if (!canvas) {
+                console.error('weightChart canvas element not found');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (weightChart) {
+                weightChart.destroy();
+            }
+
+            weightChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Select a layer'],
+                    datasets: [{
+                        label: 'No Data',
+                        data: [0],
+                        backgroundColor: 'rgba(102, 126, 234, 0.3)',
+                        borderColor: '#667eea',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '📈 Select a layer from the dropdown to view weight statistics'
+                        },
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Layer Selection Required'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Weight Statistics'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }        // Update weight chart for specific layer
+        function updateWeightChart() {
+            const layerName = document.getElementById('weightLayer').value;
+            
+            // Show loading spinner
+            const loadingElement = document.getElementById('weightChartLoading');
+            const canvasElement = document.getElementById('weightChartCanvas');
+            
+            if (!layerName) {
+                console.log('No layer selected');
+                if (loadingElement) loadingElement.style.display = 'none';
+                if (canvasElement) canvasElement.style.display = 'block';
+                return;
+            }
+
+            if (!currentAnalysis) {
+                console.log('No analysis data available');
+                if (loadingElement) loadingElement.style.display = 'none';
+                if (canvasElement) canvasElement.style.display = 'block';
+                return;
+            }
+
+            // Show loading
+            if (loadingElement) loadingElement.style.display = 'block';
+            if (canvasElement) canvasElement.style.display = 'none';
+
+            console.log(`🔍 Looking for weight statistics for layer: "${layerName}"`);
+
+            // Check if weight analysis data exists
+            if (!currentAnalysis.weight_analysis || !currentAnalysis.weight_analysis.weight_statistics) {
+                console.error('❌ No weight analysis data available');
+                console.log('Current analysis structure:', Object.keys(currentAnalysis));
+                
+                // Hide loading and show error
+                if (loadingElement) loadingElement.style.display = 'none';
+                if (canvasElement) canvasElement.style.display = 'block';
+                showWeightChartError(`No weight analysis data available`);
+                return;
+            }
+
+            const availableKeys = Object.keys(currentAnalysis.weight_analysis.weight_statistics);
+            console.log(`📊 Available weight statistics keys (${availableKeys.length}):`, availableKeys);
+
+            // Try different variations of the layer name to match weight statistics keys
+            let weightStats = null;
+            let actualLayerName = layerName;
+            let matchMethod = '';
+            
+            // First try exact match
+            weightStats = currentAnalysis.weight_analysis.weight_statistics[layerName];
+            if (weightStats) {
+                matchMethod = 'exact match';
+                console.log(`✅ Found with exact match: ${layerName}`);
+            }
+            
+            // If not found, try with .weight suffix (most common case)
+            if (!weightStats) {
+                const weightKey = layerName + '.weight';
+                weightStats = currentAnalysis.weight_analysis.weight_statistics[weightKey];
+                if (weightStats) {
+                    actualLayerName = weightKey;
+                    matchMethod = '.weight suffix';
+                    console.log(`✅ Found with .weight suffix: ${weightKey}`);
+                }
+            }
+            
+            // If still not found, try with .bias suffix
+            if (!weightStats) {
+                const biasKey = layerName + '.bias';
+                weightStats = currentAnalysis.weight_analysis.weight_statistics[biasKey];
+                if (weightStats) {
+                    actualLayerName = biasKey;
+                    matchMethod = '.bias suffix';
+                    console.log(`✅ Found with .bias suffix: ${biasKey}`);
+                }
+            }
+            
+            // If still not found, try to find any key that starts with the layer name
+            if (!weightStats) {
+                const matchingKey = availableKeys.find(key => key.startsWith(layerName + '.'));
+                if (matchingKey) {
+                    weightStats = currentAnalysis.weight_analysis.weight_statistics[matchingKey];
+                    actualLayerName = matchingKey;
+                    matchMethod = 'partial match';
+                    console.log(`✅ Found with partial match: ${matchingKey}`);
+                }
+            }
+            
+            // Try case-insensitive search
+            if (!weightStats) {
+                const lowerLayerName = layerName.toLowerCase();
+                const matchingKey = availableKeys.find(key => key.toLowerCase().includes(lowerLayerName));
+                if (matchingKey) {
+                    weightStats = currentAnalysis.weight_analysis.weight_statistics[matchingKey];
+                    actualLayerName = matchingKey;
+                    matchMethod = 'case-insensitive match';
+                    console.log(`✅ Found with case-insensitive match: ${matchingKey}`);
+                }
+            }
+            
+            if (!weightStats) {
+                console.error(`❌ No weight statistics found for layer: "${layerName}"`);
+                console.log('🔍 Debugging info:');
+                console.log('  - Tried exact match:', layerName);
+                console.log('  - Tried with .weight suffix:', layerName + '.weight');
+                console.log('  - Tried with .bias suffix:', layerName + '.bias');
+                console.log('  - Tried partial matching');
+                console.log('  - Available keys:', availableKeys);
+                
+                // Hide loading and show error
+                if (loadingElement) loadingElement.style.display = 'none';
+                if (canvasElement) canvasElement.style.display = 'block';
+                showWeightChartError(`No weight statistics found for "${layerName}"`);
+                return;
+            }
+
+            console.log(`🎯 Successfully found weight statistics using ${matchMethod}`);
+            console.log('📈 Weight stats:', weightStats);
+
+            // Hide loading and show chart
+            if (loadingElement) loadingElement.style.display = 'none';
+            if (canvasElement) canvasElement.style.display = 'block';
+
+            createWeightChart(weightStats, actualLayerName);
+        }
+
+        // Helper function to show error in weight chart
+        function showWeightChartError(message) {
+            const canvas = document.getElementById('weightChart');
+            if (!canvas) {
+                console.error('weightChart canvas element not found');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (weightChart) {
+                weightChart.destroy();
+            }
+            
+            weightChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['No Data'],
+                    datasets: [{
+                        label: 'Error',
+                        data: [0],
+                        backgroundColor: 'rgba(220, 53, 69, 0.3)',
+                        borderColor: '#dc3545',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `❌ ${message}`
+                        },
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }        // Helper function to create the actual weight chart
+        function createWeightChart(weightStats, actualLayerName) {
+            const canvas = document.getElementById('weightChart');
+            if (!canvas) {
+                console.error('weightChart canvas element not found');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Failed to get 2D context from weightChart canvas');
+                return;
+            }
+            
+            if (weightChart) {
+                weightChart.destroy();
+            }
+
+            // Create a simple bar chart from the available statistics
+            const labels = ['Min', 'Mean', 'Max', 'Std Dev', 'Sparsity'];
+            const data = [
+                weightStats.min || 0,
+                weightStats.mean || 0,
+                weightStats.max || 0,
+                weightStats.std || 0,
+                (weightStats.sparsity || 0) * 100  // Convert to percentage
+            ];
+
+            // Use different colors for different statistics
+            const backgroundColors = [
+                'rgba(220, 53, 69, 0.6)',   // Red for min
+                'rgba(40, 167, 69, 0.6)',   // Green for mean
+                'rgba(255, 193, 7, 0.6)',   // Yellow for max
+                'rgba(102, 126, 234, 0.6)', // Blue for std
+                'rgba(108, 117, 125, 0.6)'  // Gray for sparsity
+            ];
+
+            try {
+                weightChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Weight Statistics',
+                            data: data,
+                            backgroundColor: backgroundColors,
+                            borderColor: backgroundColors.map(color => color.replace('0.6', '1')),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `📈 Weight Statistics - ${actualLayerName}`
+                            },
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label;
+                                        const value = context.raw;
+                                        if (label === 'Sparsity') {
+                                            return `${label}: ${value.toFixed(4)}%`;
+                                        }
+                                        return `${label}: ${value.toFixed(6)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Statistic Type'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Value'
+                                },
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+                
+                console.log('✅ Weight chart created successfully');
+                
+            } catch (error) {                console.error('❌ Failed to create weight chart:', error);
+                showWeightChartError(`Failed to create chart: ${error.message}`);
+            }
+        }
+
+        // Update optimization suggestions
+        function updateOptimizationSuggestions() {
+            if (!currentAnalysis) return;
+
+            const optimizationElement = document.getElementById('optimizationSuggestions');
+            if (!optimizationElement) {
+                console.error('optimizationSuggestions element not found');
+                return;
+            }
+
+            // Use optimization_priority from model_insights_summary
+            const priorities = currentAnalysis.optimization_priority || [];
+            let html = '';
+
+            if (priorities.length === 0) {
+                html = '<p style="text-align: center; color: #28a745; padding: 2rem;">✅ No optimization issues detected!</p>';
+            } else {
+                priorities.forEach(priority => {
+                    const icon = priority.priority === 'high' ? '🔴' : 
+                                 priority.priority === 'medium' ? '🟡' : '🟢';
+                    html += `
+                        <div class="suggestion ${priority.priority}">
+                            ${icon} <strong>${priority.type}:</strong> ${priority.reason}
+                            <br><small>Priority: ${priority.priority}</small>
+                        </div>
+                    `;
+                });
+            }
+
+            optimizationElement.innerHTML = html;
+        }        // Benchmark model performance
+        async function benchmarkModel() {
+            const modelName = document.getElementById('modelSelect').value;
+            if (!modelName) {
+                alert('Please select a model first');
+                return;
+            }
+
+            const performanceElement = document.getElementById('performanceMetrics');
+            if (!performanceElement) {
+                console.error('performanceMetrics element not found');
+                return;
+            }
+
+            const loadingHtml = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Running performance benchmark...</p>
+                </div>
+            `;
+            performanceElement.innerHTML = loadingHtml;
+
+            try {
+                const response = await fetch(`/api/performance_metrics/${encodeURIComponent(modelName)}`);
+                const metrics = await response.json();
+
+                if (metrics.error) {
+                    throw new Error(metrics.error);
+                }
+
+                const html = `
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <span class="metric-value">${metrics.inference_time.estimated_inference_ms.toFixed(2)} ms</span>
+                            <div class="metric-label">⏱️ Est. Inference Time</div>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value">${metrics.memory_footprint.total_mb.toFixed(1)} MB</span>
+                            <div class="metric-label">💾 Memory Footprint</div>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value">${metrics.flops.gflops.toFixed(2)} GFLOPS</span>
+                            <div class="metric-label">🚀 Computational Cost</div>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-value">${metrics.parameter_efficiency.efficiency_score.toFixed(2)}</span>
+                            <div class="metric-label">⚖️ Efficiency Score</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <strong>🔍 Performance Insights:</strong>
+                        <ul style="margin-left: 1rem; margin-top: 0.5rem;">
+                            <li>🏆 Largest memory consumer: ${metrics.memory_footprint.largest_layer}</li>
+                            <li>📊 Parameters per layer: ${metrics.parameter_efficiency.params_per_layer.toFixed(0)}</li>
+                            <li>📈 Parameter density: ${metrics.parameter_efficiency.parameter_density.toFixed(2)}</li>
+                        </ul>
+                    </div>
+                `;
+
+                performanceElement.innerHTML = html;                // Update memory chart from performance data
+                updatePerformanceMemoryChart(metrics.memory_footprint);
+
+            } catch (error) {
+                console.error('Error benchmarking model:', error);
+                performanceElement.innerHTML = 
+                    `<p style="color: red; text-align: center;">❌ Error: ${error.message}</p>`;
+            }
+        }        // Update memory chart from performance benchmark data
+        function updatePerformanceMemoryChart(memoryData) {
+            const canvas = document.getElementById('memoryChart');
+            if (!canvas) {
+                console.error('memoryChart canvas element not found');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (memoryChart) {
+                memoryChart.destroy();
+            }
+
+            const breakdown = memoryData.breakdown;
+            const labels = Object.keys(breakdown).slice(0, 10); // Show top 10 layers
+            const data = labels.map(label => breakdown[label].mb);
+            const colors = labels.map((_, index) => 
+                `hsl(${(index * 360 / labels.length)}, 70%, 60%)`);
+
+            memoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '💾 Memory Usage by Layer (Top 10)'
+                        },
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Compare models
+        async function compareModels() {
+            const model1 = document.getElementById('modelSelect').value;
+            const model2 = document.getElementById('comparisonModel').value;
+
+            if (!model1 || !model2) {
+                alert('Please select two models for comparison');
+                return;
+            }
+
+            if (model1 === model2) {
+                alert('Please select different models for comparison');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/model_comparison?models=${encodeURIComponent(model1)}&models=${encodeURIComponent(model2)}`);
+                const comparison = await response.json();
+
+                if (comparison.error) {
+                    throw new Error(comparison.error);
+                }
+
+                displayComparison(comparison, model1, model2);
+
+            } catch (error) {
+                console.error('Error comparing models:', error);
+                alert('Error comparing models: ' + error.message);
+            }
+        }        // Display model comparison
+        function displayComparison(comparison, model1, model2) {
+            const data1 = comparison[model1];
+            const data2 = comparison[model2];
+
+            if (data1.error || data2.error) {
+                alert(`Error in comparison: ${data1.error || data2.error}`);
+                return;
+            }
+
+            const comparisonElement = document.getElementById('comparisonResults');
+            if (!comparisonElement) {
+                console.error('comparisonResults element not found');
+                return;
+            }
+
+            const html = `
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>📊 Metric</th>
+                            <th>🔵 ${model1}</th>
+                            <th>🔴 ${model2}</th>
+                            <th>📈 Difference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>⚙️ Parameters</td>
+                            <td>${(data1.parameters / 1000000).toFixed(2)}M</td>
+                            <td>${(data2.parameters / 1000000).toFixed(2)}M</td>
+                            <td>${(((data1.parameters - data2.parameters) / data2.parameters) * 100).toFixed(1)}%</td>
+                        </tr>
+                        <tr>
+                            <td>🏗️ Layers</td>
+                            <td>${data1.layers}</td>
+                            <td>${data2.layers}</td>
+                            <td>${data1.layers - data2.layers}</td>
+                        </tr>
+                        <tr>
+                            <td>💾 Memory Usage</td>
+                            <td>${data1.memory_usage.total_mb.toFixed(1)} MB</td>
+                            <td>${data2.memory_usage.total_mb.toFixed(1)} MB</td>
+                            <td>${(((data1.memory_usage.total_mb - data2.memory_usage.total_mb) / data2.memory_usage.total_mb) * 100).toFixed(1)}%</td>
+                        </tr>
+                        <tr>
+                            <td>🧮 Complexity Score</td>
+                            <td>${data1.complexity_score.toFixed(2)}</td>
+                            <td>${data2.complexity_score.toFixed(2)}</td>
+                            <td>${(data1.complexity_score - data2.complexity_score).toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="margin-top: 1rem;">
+                    <h4>💡 Recommendations:</h4>
+                    <ul style="margin-left: 1rem; margin-top: 0.5rem;">
+                        ${data1.parameters > data2.parameters ? 
+                            `<li>📊 ${model1} has ${((data1.parameters / data2.parameters - 1) * 100).toFixed(1)}% more parameters - consider if this complexity is justified</li>` : 
+                            `<li>📊 ${model2} has ${((data2.parameters / data1.parameters - 1) * 100).toFixed(1)}% more parameters - consider if this complexity is justified</li>`}
+                        ${data1.memory_usage.total_mb > data2.memory_usage.total_mb ? 
+                            `<li>💾 ${model1} uses more memory - consider optimization if deployment memory is limited</li>` : 
+                            `<li>💾 ${model2} uses more memory - consider optimization if deployment memory is limited</li>`}
+                    </ul>
+                </div>
+            `;
+
+            comparisonElement.innerHTML = html;
+            document.getElementById('comparisonSection').style.display = 'block';
+        }
+
+        // Show layer details
+        async function showLayerDetails(layerName) {
+            const modelName = document.getElementById('modelSelect').value;
+            if (!modelName) return;
+
+            try {
+                const response = await fetch(`/api/layer_details/${encodeURIComponent(modelName)}/${encodeURIComponent(layerName)}`);
+                const details = await response.json();
+
+                if (details.error) {
+                    throw new Error(details.error);
+                }
+
+                // Create modal with layer details
+                let detailsHtml = `
+                    <div class="modal-overlay" onclick="this.remove()">
+                        <div class="modal-content" onclick="event.stopPropagation()">
+                            <h3>🔍 Layer Details: ${details.name}</h3>
+                            <p><strong>Type:</strong> ${getLayerTypeIcon(details.type)} ${details.type}</p>
+                `;
+
+                if (Object.keys(details.parameters).length > 0) {
+                    detailsHtml += '<h4>⚙️ Parameters:</h4><ul>';
+                    Object.entries(details.parameters).forEach(([name, param]) => {
+                        detailsHtml += `<li><strong>${name}:</strong> Shape ${JSON.stringify(param.shape)} (${param.memory_mb.toFixed(2)} MB)</li>`;
+                    });
+                    detailsHtml += '</ul>';
+                }
+
+                if (Object.keys(details.architecture_details).length > 0) {
+                    detailsHtml += '<h4>🏗️ Architecture:</h4><ul>';
+                    Object.entries(details.architecture_details).forEach(([key, value]) => {
+                        detailsHtml += `<li><strong>${key}:</strong> ${JSON.stringify(value)}</li>`;
+                    });
+                    detailsHtml += '</ul>';
+                }
+
+                detailsHtml += '<button onclick="this.closest(\'.modal-overlay\').remove()" style="margin-top: 1rem;">❌ Close</button></div></div>';
+
+                document.body.insertAdjacentHTML('beforeend', detailsHtml);
+
+            } catch (error) {
+                console.error('Error loading layer details:', error);
+                alert('Error loading layer details: ' + error.message);
+            }
+        }
+
+        // Health check functionality
+        async function runHealthCheck() {
+            const modelName = document.getElementById('modelSelect').value;
+            if (!modelName) {
+                alert('Please select a model first');
+                return;
+            }            document.getElementById('healthCheck').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Running health check...</p>
+                </div>
+            `;
+
+            const healthElement = document.getElementById('healthCheck');
+            if (!healthElement) {
+                console.error('healthCheck element not found');
+                return;
+            }// Simulate health check (use existing analysis)
+            if (currentAnalysis) {
+                const priorities = currentAnalysis.optimization_priority || [];
+                
+                let healthScore = 100;
+                let issues = [];
+                
+                priorities.forEach(priority => {
+                    if (priority.priority === 'high') healthScore -= 20;
+                    else if (priority.priority === 'medium') healthScore -= 10;
+                    else healthScore -= 5;
+                    
+                    issues.push({
+                        type: 'warning',
+                        category: priority.type,
+                        message: priority.reason
+                    });
+                });                // Use health_score from analysis if available
+                if (currentAnalysis.health_score && currentAnalysis.health_score.overall_score) {
+                    healthScore = currentAnalysis.health_score.overall_score;
+                }
+
+                const healthColor = healthScore >= 80 ? '#28a745' : healthScore >= 60 ? '#ffc107' : '#dc3545';
+                const healthEmoji = healthScore >= 80 ? '💚' : healthScore >= 60 ? '💛' : '❤️';
+
+                let html = `
+                    <div style="text-align: center; margin-bottom: 1rem;">
+                        <h2 style="color: ${healthColor};">${healthEmoji} Health Score: ${healthScore}/100</h2>
+                    </div>
+                `;
+
+                if (issues.length === 0) {
+                    html += '<p style="text-align: center; color: #28a745; padding: 1rem;">✅ Model is in excellent health!</p>';
+                } else {
+                    html += '<h4>🚨 Issues Found:</h4>';
+                    issues.slice(0, 5).forEach(issue => {
+                        const icon = issue.type === 'warning' ? '⚠️' : 'ℹ️';
+                        html += `<div class="suggestion ${issue.type}" style="margin-bottom: 0.5rem;">
+                            ${icon} <strong>${issue.category}:</strong> ${issue.message}
+                        </div>`;
+                    });
+                }                healthElement.innerHTML = html;
+            } else {
+                healthElement.innerHTML = 
+                    '<p style="color: red; text-align: center;">Please run analysis first</p>';
+            }
+        }        // Training insights
+        async function analyzeTraining() {
+            const modelName = document.getElementById('modelSelect').value;
+            if (!modelName) {
+                alert('Please select a model first');
+                return;
+            }
+
+            const trainingElement = document.getElementById('trainingInsights');
+            if (!trainingElement) {
+                console.error('trainingInsights element not found');
+                return;
+            }
+
+            trainingElement.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing training insights...</p>
+                </div>
+            `;
+
+            if (currentAnalysis) {
+                // Use available data from model_insights_summary
+                const layerDetails = currentAnalysis.layer_insights ? currentAnalysis.layer_insights.layer_details : [];
+                const weightAnalysis = currentAnalysis.weight_analysis || {};
+                
+                let insights = [];
+                
+                // Analyze layer efficiency from layer insights
+                layerDetails.forEach(layer => {
+                    if (layer.efficiency_score < 50) {
+                        insights.push(`⚠️ Layer ${layer.name} has low efficiency (${layer.efficiency_score.toFixed(1)}%) - consider optimization`);
+                    }
+                    if (layer.bottleneck_risk) {
+                        insights.push(`🚨 Layer ${layer.name} may be a bottleneck - monitor performance`);
+                    }
+                    if (layer.parameters > 1000000) {
+                        insights.push(`📊 Layer ${layer.name} has many parameters (${(layer.parameters/1000000).toFixed(1)}M) - consider pruning`);
+                    }
+                });
+
+                // Analyze weight distributions if available
+                if (weightAnalysis.distribution_analysis) {
+                    Object.entries(weightAnalysis.distribution_analysis).forEach(([layer, dist]) => {
+                        if (dist.mean && Math.abs(dist.mean) > 0.1) {
+                            insights.push(`⚠️ Layer ${layer} has high weight mean (${dist.mean.toFixed(3)}) - may need better initialization`);
+                        }
+                        if (dist.std && dist.std < 0.01) {
+                            insights.push(`📉 Layer ${layer} has very low weight variance - possible dead neurons`);
+                        }
+                        if (dist.std && dist.std > 1.0) {
+                            insights.push(`📈 Layer ${layer} has high weight variance - may need regularization`);
+                        }
+                    });
+                }
+
+                let html = '<h4>🎯 Training Insights:</h4>';
+                if (insights.length === 0) {
+                    html += '<p style="color: #28a745; text-align: center; padding: 1rem;">✅ Training appears well-balanced!</p>';
+                } else {
+                    insights.slice(0, 6).forEach(insight => {
+                        html += `<div style="padding: 0.5rem; margin: 0.3rem 0; background: rgba(102, 126, 234, 0.1); border-radius: 4px;">${insight}</div>`;
+                    });
+                }
+
+                trainingElement.innerHTML = html;
+            } else {
+                trainingElement.innerHTML = 
+                    '<p style="color: red; text-align: center;">Please run analysis first</p>';
+            }
+        }        // Utility functions
+        function showLoading() {
+            document.querySelectorAll('.card-content').forEach(card => {
+                if (card && !card.querySelector('.loading')) {
+                    card.innerHTML = `
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Loading analysis...</p>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        function hideLoading() {
+            // Loading will be hidden when content is updated
+        }
+
+        function hideComparison() {
+            document.getElementById('comparisonSection').style.display = 'none';
+        }
+
+        function sortLayers() {
+            // Implementation for sorting layers
+            if (currentAnalysis) {
+                updateLayerAnalysis();
+            }
+        }        function updateMemoryView() {
+            if (!currentAnalysis) {
+                console.log('No analysis data available for memory view');
+                return;
+            }
+
+            const loadingElement = document.getElementById('memoryChartLoading');
+            const canvasElement = document.getElementById('memoryChartCanvas');
+            const viewType = document.getElementById('memoryView').value;
+
+            // Show loading
+            if (loadingElement) loadingElement.style.display = 'block';
+            if (canvasElement) canvasElement.style.display = 'none';
+
+            console.log(`🔍 Updating memory view: ${viewType}`);
+
+            // Check if we have memory data from basic info or efficiency metrics
+            let memoryData = null;
+            
+            if (currentAnalysis.basic_info && currentAnalysis.basic_info.memory_footprint_mb) {
+                // Create memory breakdown from available data
+                const totalMemory = currentAnalysis.basic_info.memory_footprint_mb;
+                const layerDetails = currentAnalysis.layer_insights ? currentAnalysis.layer_insights.layer_details : [];
+                
+                // Estimate memory breakdown by layer parameters
+                let breakdown = {};
+                let totalParams = 0;
+                
+                layerDetails.forEach(layer => {
+                    if (layer.parameters) {
+                        totalParams += layer.parameters;
+                    }
+                });
+                
+                layerDetails.forEach(layer => {
+                    if (layer.parameters) {
+                        const paramRatio = layer.parameters / totalParams;
+                        const layerMemory = totalMemory * paramRatio;
+                        breakdown[layer.name] = {
+                            mb: layerMemory,
+                            percentage: paramRatio * 100
+                        };
+                    }
+                });
+
+                memoryData = {
+                    total_mb: totalMemory,
+                    breakdown: breakdown,
+                    largest_layer: Object.keys(breakdown).reduce((a, b) => 
+                        breakdown[a].mb > breakdown[b].mb ? a : b, Object.keys(breakdown)[0])
+                };
+            }
+
+            // Hide loading
+            if (loadingElement) loadingElement.style.display = 'none';
+            if (canvasElement) canvasElement.style.display = 'block';
+
+            if (!memoryData) {
+                console.log('❌ No memory data available');
+                showMemoryChartError('Memory data not available. Run Performance Benchmark for detailed memory analysis.');
+                return;
+            }
+
+            console.log('✅ Memory data found:', memoryData);
+
+            if (viewType === 'breakdown') {
+                createMemoryBreakdownChart(memoryData);
+            } else {
+                createMemoryEfficiencyChart();
+            }
+        }
+
+        // Helper function to show memory chart error
+        function showMemoryChartError(message) {
+            const canvas = document.getElementById('memoryChart');
+            if (!canvas) {
+                console.error('memoryChart canvas element not found');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (memoryChart) {
+                memoryChart.destroy();
+            }
+            
+            memoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['No Data'],
+                    datasets: [{
+                        data: [1],
+                        backgroundColor: ['rgba(220, 53, 69, 0.3)'],
+                        borderColor: ['#dc3545'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `❌ ${message}`
+                        },
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create memory breakdown chart
+        function createMemoryBreakdownChart(memoryData) {
+            const canvas = document.getElementById('memoryChart');
+            if (!canvas) {
+                console.error('memoryChart canvas element not found');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (memoryChart) {
+                memoryChart.destroy();
+            }
+
+            const breakdown = memoryData.breakdown;
+            const labels = Object.keys(breakdown).slice(0, 10); // Show top 10 layers
+            const data = labels.map(label => breakdown[label].mb);
+            const colors = labels.map((_, index) => 
+                `hsl(${(index * 360 / labels.length)}, 70%, 60%)`);
+
+            try {
+                memoryChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: colors,
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `💾 Memory Breakdown - Total: ${memoryData.total_mb.toFixed(1)} MB`
+                            },
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const label = context.label || '';
+                                        const value = context.raw || 0;
+                                        const percentage = breakdown[label] ? breakdown[label].percentage : 0;
+                                        return `${label}: ${value.toFixed(2)} MB (${percentage.toFixed(1)}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                console.log('✅ Memory breakdown chart created successfully');
+                
+            } catch (error) {
+                console.error('❌ Failed to create memory breakdown chart:', error);
+                showMemoryChartError(`Failed to create chart: ${error.message}`);
+            }
+        }
+
+        // Create memory efficiency chart
+        function createMemoryEfficiencyChart() {
+            const canvas = document.getElementById('memoryChart');
+            if (!canvas) {
+                console.error('memoryChart canvas element not found');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (memoryChart) {
+                memoryChart.destroy();
+            }
+
+            // Create efficiency metrics from available data
+            const efficiency = currentAnalysis.efficiency_metrics || {};
+            const memoryEff = efficiency.memory_efficiency || 50;
+            const paramEff = efficiency.parameter_efficiency || 50;
+            const overallEff = efficiency.overall_efficiency || 50;
+
+            const labels = ['Memory Efficiency', 'Parameter Efficiency', 'Overall Efficiency'];
+            const data = [memoryEff, paramEff, overallEff];
+            const colors = [
+                memoryEff >= 80 ? '#28a745' : memoryEff >= 60 ? '#ffc107' : '#dc3545',
+                paramEff >= 80 ? '#28a745' : paramEff >= 60 ? '#ffc107' : '#dc3545',
+                overallEff >= 80 ? '#28a745' : overallEff >= 60 ? '#ffc107' : '#dc3545'
+            ];
+
+            try {
+                memoryChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Efficiency Score (%)',
+                            data: data,
+                            backgroundColor: colors,
+                            borderColor: colors,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: '📊 Memory & Efficiency Metrics'
+                            },
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.label}: ${context.raw.toFixed(1)}%`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: 'Efficiency Score (%)'
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                console.log('✅ Memory efficiency chart created successfully');
+                
+            } catch (error) {
+                console.error('❌ Failed to create memory efficiency chart:', error);
+                showMemoryChartError(`Failed to create chart: ${error.message}`);
+            }
+        }
+
+        function refreshOverview() {
+            if (currentAnalysis) {
+                updateModelOverview();
+            }
+        }
+
+        function generateSuggestions() {
+            if (currentAnalysis) {
+                updateOptimizationSuggestions();
+            } else {
+                loadAnalysis();
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-load analysis if a model is pre-selected
+            const modelSelect = document.getElementById('modelSelect');
+            if (modelSelect.value) {
+                loadAnalysis();
+            }
+        });
+    </script>
+</body>
+</html>

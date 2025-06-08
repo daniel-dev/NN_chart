@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hierarchical View - Neural Network Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow: hidden;
+        }        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            min-height: 60px;
+        }
+
+        .navbar h1 {
+            color: #4a5568;
+            font-size: 1.5rem;
+            font-weight: 600;
+            flex-shrink: 0;
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .view-toggles {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            flex-shrink: 0;
+        }        .view-btn {
+            padding: 0.5rem 0.8rem;
+            border: 2px solid #667eea;
+            background: transparent;
+            color: #667eea;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        .view-btn:hover, .view-btn.active {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            padding-top: 80px;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem;
+            overflow-y: auto;
+            box-shadow: 2px 0 20px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            margin-bottom: 2rem;
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .control-group input, .control-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .visualization-area {
+            flex: 1;
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        #hierarchical-svg {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+
+        #hierarchical-svg:active {
+            cursor: grabbing;
+        }
+
+        .node {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .node:hover {
+            transform: scale(1.1);
+        }
+
+        .node circle {
+            stroke: #fff;
+            stroke-width: 2px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+        }
+
+        .node text {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            text-anchor: middle;
+            pointer-events: none;
+            fill: #333;
+        }
+
+        .link {
+            fill: none;
+            stroke: #999;
+            stroke-opacity: 0.6;
+            stroke-width: 1.5px;
+            transition: all 0.3s ease;
+        }
+
+        .link:hover {
+            stroke: #667eea;
+            stroke-width: 3px;
+            stroke-opacity: 1;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 300px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .tooltip.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .legend {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .legend h3 {
+            margin-bottom: 0.5rem;
+            color: #4a5568;
+            font-size: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            border: 2px solid #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .info-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .info-panel h3 {
+            color: #4a5568;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-panel p {
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 1.2rem;
+            color: #667eea;
+        }
+
+        .error {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 1.2rem;
+            color: #e53e3e;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 1rem;
+            }
+
+            .navbar h1 {
+                font-size: 1.2rem;
+            }
+
+            .view-btn {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.9rem;
+            }
+
+            .sidebar {
+                width: 250px;
+            }
+
+            .container {
+                padding-top: 70px;
+            }
+        }
+    </style>
+</head>
+<body>    <nav class="navbar">        <h1>Hierarchical View</h1><div class="view-toggles">
+            <a href="/" class="view-btn">2D View</a>
+            <a href="/visualize_3d" class="view-btn">3D View</a>
+            <a href="/visualize_hierarchical" class="view-btn active">Hierarchical</a>
+            <a href="/visualize_force" class="view-btn">Force-Directed</a>
+            <a href="/visualize_interactive" class="view-btn">Interactive</a>
+            <a href="/analytics_dashboard" class="view-btn">Analytics</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="controls">                <div class="control-group">
+                    <label for="modelSelect">Select Model:</label>
+                    <select id="modelSelect">
+                        <option value="">Choose a model...</option>
+                        {% for model_file in model_files %}
+                        <option value="{{ model_file }}">{{ model_file }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="orientationSelect">Tree Orientation:</label>
+                    <select id="orientationSelect">
+                        <option value="top-bottom">Top to Bottom</option>
+                        <option value="left-right">Left to Right</option>
+                        <option value="radial">Radial</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="nodeSize">Node Size: <span id="nodeSizeValue">8</span></label>
+                    <input type="range" id="nodeSize" min="4" max="20" value="8">
+                </div>
+
+                <div class="control-group">
+                    <label for="spacing">Node Spacing: <span id="spacingValue">100</span></label>
+                    <input type="range" id="spacing" min="50" max="200" value="100">
+                </div>
+
+                <div class="control-group">
+                    <label for="showLabels">
+                        <input type="checkbox" id="showLabels" checked> Show Labels
+                    </label>
+                </div>
+            </div>
+
+            <div class="legend">
+                <h3>Layer Types</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff6b6b;"></div>
+                    <span>Input Layer</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4ecdc4;"></div>
+                    <span>Hidden Layer</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #45b7d1;"></div>
+                    <span>Linear Layer</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #96ceb4;"></div>
+                    <span>Activation</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #feca57;"></div>
+                    <span>Output Layer</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff9ff3;"></div>
+                    <span>Other</span>
+                </div>
+            </div>
+
+            <div class="info-panel" id="infoPanel">
+                <h3>Model Information</h3>
+                <p>Select a model to view its hierarchical structure.</p>
+            </div>
+        </div>
+
+        <div class="visualization-area">
+            <div id="loadingIndicator" class="loading">
+                Loading model data...
+            </div>
+            <div id="errorIndicator" class="error" style="display: none;">
+                Failed to load model data. Please try again.
+            </div>
+            <svg id="hierarchical-svg"></svg>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        class HierarchicalVisualizer {
+            constructor() {
+                this.svg = d3.select('#hierarchical-svg');
+                this.tooltip = d3.select('#tooltip');
+                this.currentData = null;
+                this.currentOrientation = 'top-bottom';
+                this.nodeSize = 8;
+                this.spacing = 100;
+                this.showLabels = true;
+                
+                this.colorMap = {
+                    'Input': '#ff6b6b',
+                    'Linear': '#45b7d1',
+                    'ReLU': '#96ceb4',
+                    'Dropout': '#96ceb4',
+                    'Softmax': '#96ceb4',
+                    'Hidden': '#4ecdc4',
+                    'Output': '#feca57',
+                    'Other': '#ff9ff3'
+                };
+
+                this.initializeControls();
+                this.setupZoom();
+                this.checkForModelParam();
+            }
+
+            initializeControls() {
+                // Model selection
+                d3.select('#modelSelect').on('change', (event) => {
+                    const selectedModel = event.target.value;
+                    if (selectedModel) {
+                        this.loadModel(selectedModel);
+                    }
+                });
+
+                // Orientation change
+                d3.select('#orientationSelect').on('change', (event) => {
+                    this.currentOrientation = event.target.value;
+                    if (this.currentData) {
+                        this.renderVisualization();
+                    }
+                });
+
+                // Node size control
+                d3.select('#nodeSize').on('input', (event) => {
+                    this.nodeSize = +event.target.value;
+                    d3.select('#nodeSizeValue').text(this.nodeSize);
+                    if (this.currentData) {
+                        this.updateNodeSizes();
+                    }
+                });
+
+                // Spacing control
+                d3.select('#spacing').on('input', (event) => {
+                    this.spacing = +event.target.value;
+                    d3.select('#spacingValue').text(this.spacing);
+                    if (this.currentData) {
+                        this.renderVisualization();
+                    }
+                });
+
+                // Labels toggle
+                d3.select('#showLabels').on('change', (event) => {
+                    this.showLabels = event.target.checked;
+                    if (this.currentData) {
+                        this.toggleLabels();
+                    }
+                });
+            }
+
+            setupZoom() {
+                const zoom = d3.zoom()
+                    .scaleExtent([0.1, 4])
+                    .on('zoom', (event) => {
+                        this.svg.select('g').attr('transform', event.transform);
+                    });
+
+                this.svg.call(zoom);
+            }
+
+            checkForModelParam() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const model = urlParams.get('model');
+                if (model) {
+                    d3.select('#modelSelect').property('value', model);
+                    this.loadModel(model);
+                }
+            }
+
+            async loadModel(modelName) {
+                try {
+                    d3.select('#loadingIndicator').style('display', 'flex');
+                    d3.select('#errorIndicator').style('display', 'none');
+                    this.svg.selectAll('*').remove();
+
+                    const response = await fetch(`/api/model_data_3d?model_file=${modelName}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    this.currentData = this.processDataForHierarchy(data);
+                    
+                    this.updateInfoPanel(data.metadata);
+                    this.renderVisualization();
+                    
+                    d3.select('#loadingIndicator').style('display', 'none');
+                } catch (error) {
+                    console.error('Error loading model:', error);
+                    d3.select('#loadingIndicator').style('display', 'none');
+                    d3.select('#errorIndicator').style('display', 'flex');
+                }
+            }
+
+            processDataForHierarchy(data) {
+                // Convert flat node/edge structure to hierarchical tree
+                const nodes = data.nodes;
+                const edges = data.edges;
+                
+                // Build adjacency list
+                const children = {};
+                const parents = {};
+                
+                edges.forEach(edge => {
+                    if (!children[edge.source]) children[edge.source] = [];
+                    children[edge.source].push(edge.target);
+                    parents[edge.target] = edge.source;
+                });
+
+                // Find root nodes (nodes with no parents)
+                const roots = nodes.filter(node => !parents[node.id]);
+                
+                // If no clear roots, use first node as root
+                if (roots.length === 0 && nodes.length > 0) {
+                    roots.push(nodes[0]);
+                }
+
+                // Build tree structure recursively
+                const buildTree = (nodeId, visited = new Set()) => {
+                    if (visited.has(nodeId)) return null; // Avoid cycles
+                    visited.add(nodeId);
+                    
+                    const node = nodes.find(n => n.id === nodeId);
+                    if (!node) return null;
+
+                    const treeNode = {
+                        ...node,
+                        children: []
+                    };
+
+                    if (children[nodeId]) {
+                        children[nodeId].forEach(childId => {
+                            const child = buildTree(childId, new Set(visited));
+                            if (child) {
+                                treeNode.children.push(child);
+                            }
+                        });
+                    }
+
+                    return treeNode;
+                };
+
+                // Create hierarchy from roots
+                const hierarchy = roots.map(root => buildTree(root.id)).filter(Boolean);
+                
+                // If we have multiple roots, create a virtual root
+                if (hierarchy.length > 1) {
+                    return {
+                        id: 'virtual_root',
+                        name: 'Model',
+                        type: 'Root',
+                        children: hierarchy
+                    };
+                } else if (hierarchy.length === 1) {
+                    return hierarchy[0];
+                } else {
+                    return { id: 'empty', name: 'Empty Model', type: 'Root', children: [] };
+                }
+            }
+
+            renderVisualization() {
+                if (!this.currentData) return;
+
+                this.svg.selectAll('*').remove();
+                
+                const container = this.svg.append('g');
+                const width = this.svg.node().clientWidth;
+                const height = this.svg.node().clientHeight;
+
+                let root;
+                
+                if (this.currentOrientation === 'radial') {
+                    // Radial tree layout
+                    const tree = d3.tree()
+                        .size([2 * Math.PI, Math.min(width, height) / 2 - 100])
+                        .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth);
+                    
+                    root = d3.hierarchy(this.currentData);
+                    tree(root);
+                    
+                    container.attr('transform', `translate(${width/2},${height/2})`);
+                    
+                    // Convert polar to cartesian coordinates
+                    root.descendants().forEach(d => {
+                        d.x = d.y * Math.cos(d.x - Math.PI / 2);
+                        d.y = d.y * Math.sin(d.x - Math.PI / 2);
+                    });
+                } else {
+                    // Standard tree layout
+                    const tree = d3.tree()
+                        .size(this.currentOrientation === 'left-right' ? 
+                            [height - 100, width - 200] : 
+                            [width - 100, height - 200])
+                        .separation((a, b) => a.parent === b.parent ? 1 : 2);
+                    
+                    root = d3.hierarchy(this.currentData);
+                    tree(root);
+                    
+                    if (this.currentOrientation === 'left-right') {
+                        container.attr('transform', 'translate(100,50)');
+                        // Swap x and y coordinates for left-right layout
+                        root.descendants().forEach(d => {
+                            const temp = d.x;
+                            d.x = d.y;
+                            d.y = temp;
+                        });
+                    } else {
+                        container.attr('transform', 'translate(50,50)');
+                    }
+                }
+
+                // Apply spacing
+                root.descendants().forEach(d => {
+                    if (this.currentOrientation === 'radial') {
+                        const factor = this.spacing / 100;
+                        d.x *= factor;
+                        d.y *= factor;
+                    } else {
+                        d.x *= this.spacing / 100;
+                        d.y *= this.spacing / 100;
+                    }
+                });
+
+                // Draw links
+                const linkGenerator = this.currentOrientation === 'radial' ?
+                    d3.linkRadial()
+                        .angle(d => Math.atan2(d.y, d.x))
+                        .radius(d => Math.sqrt(d.x * d.x + d.y * d.y)) :
+                    d3.linkVertical();
+
+                container.selectAll('.link')
+                    .data(root.links())
+                    .enter().append('path')
+                    .attr('class', 'link')
+                    .attr('d', this.currentOrientation === 'radial' ? 
+                        d3.linkRadial()
+                            .angle(d => Math.atan2(d.y, d.x))
+                            .radius(d => Math.sqrt(d.x * d.x + d.y * d.y)) :
+                        this.currentOrientation === 'left-right' ?
+                            d3.linkHorizontal().x(d => d.x).y(d => d.y) :
+                            d3.linkVertical().x(d => d.x).y(d => d.y)
+                    );
+
+                // Draw nodes
+                const nodeGroups = container.selectAll('.node')
+                    .data(root.descendants())
+                    .enter().append('g')
+                    .attr('class', 'node')
+                    .attr('transform', d => `translate(${d.x},${d.y})`)
+                    .on('mouseenter', (event, d) => this.showTooltip(event, d.data))
+                    .on('mouseleave', () => this.hideTooltip())
+                    .on('click', (event, d) => this.selectNode(d.data));
+
+                nodeGroups.append('circle')
+                    .attr('r', this.nodeSize)
+                    .style('fill', d => this.getNodeColor(d.data.type));
+
+                // Add labels if enabled
+                if (this.showLabels) {
+                    nodeGroups.append('text')
+                        .attr('dy', this.nodeSize + 15)
+                        .style('font-size', '10px')
+                        .text(d => d.data.name || d.data.id);
+                }
+
+                this.nodeGroups = nodeGroups;
+            }
+
+            getNodeColor(type) {
+                return this.colorMap[type] || this.colorMap['Other'];
+            }
+
+            updateNodeSizes() {
+                if (this.nodeGroups) {
+                    this.nodeGroups.selectAll('circle')
+                        .transition().duration(300)
+                        .attr('r', this.nodeSize);
+                    
+                    if (this.showLabels) {
+                        this.nodeGroups.selectAll('text')
+                            .transition().duration(300)
+                            .attr('dy', this.nodeSize + 15);
+                    }
+                }
+            }
+
+            toggleLabels() {
+                if (this.nodeGroups) {
+                    if (this.showLabels) {
+                        this.nodeGroups.selectAll('text')
+                            .style('opacity', 0)
+                            .transition().duration(300)
+                            .style('opacity', 1);
+                    } else {
+                        this.nodeGroups.selectAll('text')
+                            .transition().duration(300)
+                            .style('opacity', 0)
+                            .remove();
+                    }
+                }
+            }
+
+            showTooltip(event, data) {
+                const tooltip = this.tooltip;
+                const content = `
+                    <strong>${data.name || data.id}</strong><br>
+                    Type: ${data.type}<br>
+                    ${data.parameters ? `Parameters: ${data.parameters.toLocaleString()}` : ''}
+                    ${data.shape ? `<br>Shape: ${data.shape.join(' × ')}` : ''}
+                `;
+                
+                tooltip.html(content)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 10) + 'px')
+                    .classed('show', true);
+            }
+
+            hideTooltip() {
+                this.tooltip.classed('show', false);
+            }
+
+            selectNode(nodeData) {
+                console.log('Selected node:', nodeData);
+                // Update info panel with selected node details
+                this.updateInfoPanel({
+                    selectedNode: nodeData
+                });
+            }
+
+            updateInfoPanel(metadata) {
+                const panel = d3.select('#infoPanel');
+                
+                if (metadata.selectedNode) {
+                    const node = metadata.selectedNode;
+                    panel.html(`
+                        <h3>Selected Node</h3>
+                        <p><strong>Name:</strong> ${node.name || node.id}</p>
+                        <p><strong>Type:</strong> ${node.type}</p>
+                        ${node.parameters ? `<p><strong>Parameters:</strong> ${node.parameters.toLocaleString()}</p>` : ''}
+                        ${node.shape ? `<p><strong>Shape:</strong> ${node.shape.join(' × ')}</p>` : ''}
+                        ${node.activation ? `<p><strong>Activation:</strong> ${node.activation}</p>` : ''}
+                    `);
+                } else if (metadata) {
+                    panel.html(`
+                        <h3>Model Information</h3>
+                        <p><strong>Total Parameters:</strong> ${metadata.total_parameters?.toLocaleString() || 'N/A'}</p>
+                        <p><strong>Total Nodes:</strong> ${metadata.total_nodes || 'N/A'}</p>
+                        <p><strong>Model Type:</strong> ${metadata.model_type || 'Unknown'}</p>
+                        <p><strong>Architecture:</strong> ${metadata.architecture || 'Standard'}</p>
+                    `);
+                }
+            }
+        }        // Initialize the visualizer when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.visualizer = new HierarchicalVisualizer();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (window.visualizer && window.visualizer.currentData) {
+                window.visualizer.renderVisualization();
+            }
+        });
+    </script>
+</body>
+</html>

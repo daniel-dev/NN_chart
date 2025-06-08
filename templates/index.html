@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Visualizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+        }.navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+
+        .navbar h1 {
+            color: #4a5568;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-shrink: 1;        }
+        
+        .view-toggles {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .view-btn {
+            padding: 0.5rem 0.8rem;
+            border: 2px solid #667eea;
+            background: transparent;
+            color: #667eea;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        
+        .view-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+        
+        .view-btn.active {
+            background: #667eea;
+            color: white;
+        }.container {
+            max-width: 900px; /* Slightly wider container */
+            margin: 80px auto 2rem auto; /* Added top margin for fixed navbar */
+            background: white;
+            padding: 2rem;
+            border-radius: 8px; /* Softer border radius */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); /* More pronounced shadow */
+        }
+        .visualization-area {
+            border: 1px solid #e0e0e0; /* Lighter border for the image */
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            background-color: #fafafa; /* Slight off-white for viz area */
+        }
+        img { 
+            max-width: 100%; 
+            height: auto; 
+            display: block; /* Center image */
+            margin: 1rem auto; /* Auto margins for centering */
+            border-radius: 4px;
+        }
+        .buttons {
+            margin: 1.5rem 0;
+            display: flex; /* Flexbox for button alignment */
+            justify-content: center; /* Center buttons */
+            gap: 1rem; /* Space between buttons */
+        }
+        .btn {
+            background-color: #007bff; /* Primary blue */
+            color: white;
+            padding: 0.8rem 1.6rem; /* Slightly increased padding */
+            text-decoration: none;
+            border: none; /* Remove border */
+            border-radius: 25px; /* More rounded buttons */
+            font-size: 0.95rem; /* Slightly adjusted font size */
+            font-weight: 500; /* Medium font weight */
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease, box-shadow 0.2s ease; /* Added box-shadow transition */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+        .btn:hover {
+            background-color: #0056b3; /* Darker blue on hover */
+            transform: translateY(-2px); /* Slight lift on hover */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* Enhanced shadow on hover */
+        }
+        .btn-secondary { /* For a different type of button if needed */
+            background-color: #5A6268; /* Slightly darker secondary */
+        }
+        .btn-secondary:hover {
+            background-color: #474C51; /* Darker secondary on hover */
+        }
+        .model-info {
+            background-color: #e9ecef; /* Light grey for info box */
+            color: #495057; /* Darker text for info */
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1.5rem 0;
+            text-align: left; /* Align text to left for readability */
+        }
+        .model-info strong {
+            color: #007bff;
+        }
+        .placeholder-text {
+            color: #6c757d; /* Muted text color */
+            font-style: italic;
+        }        .controls-area {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e9ecef;
+        }
+        .controls-area form {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .controls-area label {
+            font-weight: 500;
+            color: #495057;
+            margin-right: 0.5rem;
+        }
+        .controls-area select {
+            padding: 0.5rem 1rem;
+            border: 2px solid #ced4da;
+            border-radius: 5px;
+            background-color: white;
+            color: #495057;
+            font-size: 0.95rem;
+            min-width: 200px;
+            transition: border-color 0.2s ease-in-out;
+        }
+        .controls-area select:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+            border: 1px solid #f5c6cb;
+        }        .footer {
+            text-align: center;
+            margin-top: 3rem; /* Increased top margin */
+            padding: 1.5rem; /* Increased padding */
+            font-size: 0.9rem;
+            color: #f8f9fa; /* Lighter text for dark background */
+            background-color: #343a40; /* Dark footer background */
+            border-top: 1px solid #495057; /* Subtle top border */
+        }
+
+        /* Enhanced Image Viewer Styles */
+        .image-viewer-container {
+            position: relative;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 0;
+            margin-top: 1.5rem;
+            background-color: #fafafa;
+            overflow: hidden;
+            min-height: 400px;
+        }
+
+        .viewer-controls {
+            background: linear-gradient(to right, #343a40, #495057);
+            color: white;
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .view-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .ctrl-btn {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .ctrl-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .ctrl-btn:active {
+            transform: scale(0.95);
+        }
+
+        .zoom-slider {
+            width: 120px;
+            margin: 0 0.5rem;
+        }
+
+        .zoom-info {
+            font-size: 0.85rem;
+            color: #adb5bd;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .image-viewport {
+            position: relative;
+            overflow: auto;
+            background: 
+                linear-gradient(45deg, #f8f9fa 25%, transparent 25%), 
+                linear-gradient(-45deg, #f8f9fa 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #f8f9fa 75%), 
+                linear-gradient(-45deg, transparent 75%, #f8f9fa 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            height: 500px;
+            cursor: grab;
+        }
+
+        .image-viewport:active {
+            cursor: grabbing;
+        }
+
+        .zoomable-image {
+            transition: transform 0.2s ease;
+            transform-origin: center center;
+            max-width: none;
+            height: auto;
+            margin: 0;
+            display: block;
+        }
+
+        .fullscreen-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 10000;
+            overflow: auto;
+        }
+
+        .fullscreen-content {
+            position: relative;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .fullscreen-controls {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .fullscreen-viewer {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: 
+                linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%), 
+                linear-gradient(-45deg, rgba(255,255,255,0.1) 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.1) 75%), 
+                linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.1) 75%);
+            background-size: 30px 30px;
+            background-position: 0 0, 0 15px, 15px -15px, -15px 0px;
+        }
+
+        .fullscreen-image {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+            transition: transform 0.2s ease;
+            cursor: grab;
+        }
+
+        .fullscreen-image:active {
+            cursor: grabbing;
+        }
+
+        .close-fullscreen {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .close-fullscreen:hover {
+            background-color: #c82333;
+        }        .image-info {
+            background-color: #e9ecef;
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            color: #495057;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .minimap-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 150px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #007bff;
+            border-radius: 4px;
+            overflow: hidden;
+            z-index: 100;
+            cursor: pointer;
+            display: none;
+        }
+
+        .minimap-container.active {
+            display: block;
+        }
+
+        .minimap-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .minimap-viewport {
+            position: absolute;
+            border: 2px solid #dc3545;
+            background: rgba(220, 53, 69, 0.1);
+            pointer-events: none;
+        }
+
+        .toggle-minimap {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            z-index: 101;
+        }        .toggle-minimap:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        /* Model Details Panel */
+        .details-panel {
+            position: absolute;
+            top: 120px;
+            left: 10px;
+            width: 250px;
+            max-height: 300px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            overflow-y: auto;
+            z-index: 102;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .details-panel.active {
+            display: block;
+        }
+
+        .details-header {
+            background: linear-gradient(to right, #007bff, #0056b3);
+            color: white;
+            padding: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            position: sticky;
+            top: 0;
+        }
+
+        .details-content {
+            padding: 0.75rem;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+
+        .detail-item {
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .detail-value {
+            color: #007bff;
+            font-weight: 500;
+        }
+
+        .toggle-details {
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            z-index: 101;
+        }
+
+        .toggle-details:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        /* Export Options */
+        .export-menu {
+            position: absolute;
+            top: 60px;
+            right: 10px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 103;
+            display: none;
+            min-width: 180px;
+        }
+
+        .export-menu.active {
+            display: block;
+        }
+
+        .export-option {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f8f9fa;
+            transition: background-color 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .export-option:hover {
+            background-color: #f8f9fa;
+        }
+
+        .export-option:last-child {
+            border-bottom: none;
+        }
+
+        /* Loading indicator */
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 104;
+            display: none;
+        }
+
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Print styles for PDF export */
+        @media print {
+            .navbar, .controls-area, .viewer-controls, .image-info, .footer,
+            .minimap-container, .details-panel, .export-menu, .toggle-minimap, .toggle-details {
+                display: none !important;
+            }
+            
+            .container {
+                max-width: none;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+            
+            .image-viewer-container {
+                border: none;
+                padding: 0;
+                margin: 0;
+                background: white;
+            }
+            
+            .image-viewport {
+                height: auto;
+                overflow: visible;
+                background: white;
+            }
+            
+            .zoomable-image {
+                max-width: 100%;
+                height: auto;
+                transform: none !important;
+                page-break-inside: avoid;
+            }
+            
+            body {
+                background: white;
+            }
+        }        @media (max-width: 768px) {
+            .viewer-controls, .fullscreen-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .zoom-controls, .view-controls {
+                justify-content: center;
+                width: 100%;
+            }
+
+            .zoom-slider {
+                width: 150px;            }
+            
+            .view-toggles {
+                position: static;
+                margin-top: 0.5rem;
+                text-align: center;
+            }
+            
+            .view-btn {
+                margin: 0.2rem;
+                font-size: 0.8rem;
+                padding: 0.4rem 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>    <nav class="navbar">
+        <h1>Neural Network Visualizer</h1>        <div class="view-toggles">
+            <a href="/" class="view-btn active">2D View</a>
+            <a href="/visualize_3d" class="view-btn">3D View</a>
+            <a href="/visualize_hierarchical" class="view-btn">Hierarchical</a>
+            <a href="/visualize_force" class="view-btn">Force-Directed</a>
+            <a href="/visualize_interactive" class="view-btn">Interactive</a>
+            <a href="/analytics_dashboard" class="view-btn">Analytics</a>
+        </div>
+    </nav><div class="container">
+        <div class="controls-area">
+            <form method="GET" action="{{ url_for('visualize_selected') }}" id="modelSelectForm">
+                <label for="modelFileSelect">Select Model File:</label>
+                <select name="model_file" id="modelFileSelect">
+                    <option value="">Choose a model file...</option>
+                    {% for file in model_files %}
+                        <option value="{{ file }}" {% if file == selected_model_file %}selected{% endif %}>{{ file }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn">Visualize Selected</button>
+            </form>
+        </div>
+
+        {% if error %}
+        <div class="error-message">
+            <strong>Error:</strong> {{ error }}
+        </div>
+        {% endif %}
+        
+        {% if model_name %}
+        <div class="model-info">
+            Displaying: <strong>{{ model_name }}</strong>
+        </div>
+        {% endif %}
+          <div class="image-viewer-container">
+            {% if image_url %}
+                <div class="viewer-controls">
+                    <div class="zoom-controls">
+                        <button class="ctrl-btn" onclick="zoomOut()">🔍−</button>
+                        <input type="range" class="zoom-slider" id="zoomSlider" min="10" max="500" value="100" oninput="updateZoom(this.value)">
+                        <button class="ctrl-btn" onclick="zoomIn()">🔍+</button>
+                        <div class="zoom-info" id="zoomInfo">100%</div>
+                    </div>                    <div class="view-controls">
+                        <button class="ctrl-btn" onclick="resetView()">🔄 Reset</button>
+                        <button class="ctrl-btn" onclick="fitToWindow()">📐 Fit</button>                        <button class="ctrl-btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>                        <button class="ctrl-btn" onclick="downloadImage()">💾 Download</button>                        <button class="ctrl-btn" onclick="toggleMinimap()">🗺️ Minimap</button>
+                        <button class="ctrl-btn" onclick="toggleExportMenu()">📤 Export</button>
+                        <button class="ctrl-btn" onclick="showHelp()">❓ Help</button>
+                        <button class="ctrl-btn" onclick="goto3DView()">🎯 3D View</button>
+                    </div>
+                </div>                <div class="image-viewport" id="imageViewport">
+                    <button class="toggle-minimap" onclick="toggleMinimap()" title="Toggle Minimap">🗺️</button>
+                    <button class="toggle-details" onclick="toggleDetails()" title="Toggle Model Details">ℹ️</button>
+                    
+                    <!-- Loading Indicator -->
+                    <div class="loading-indicator" id="loadingIndicator">
+                        <div class="loading-spinner"></div>
+                        Loading visualization...
+                    </div>
+                    
+                    <!-- Minimap -->
+                    <div class="minimap-container" id="minimapContainer">
+                        <img class="minimap-image" id="minimapImage" 
+                             src="{{ image_url }}?{{ range(1, 100000) | random }}" 
+                             alt="Minimap">
+                        <div class="minimap-viewport" id="minimapViewport"></div>
+                    </div>
+                    
+                    <!-- Model Details Panel -->
+                    <div class="details-panel" id="detailsPanel">
+                        <div class="details-header">Model Information</div>
+                        <div class="details-content" id="detailsContent">
+                            <div class="detail-item">
+                                <span class="detail-label">Model:</span>
+                                <span class="detail-value">{{ model_name or 'N/A' }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Type:</span>
+                                <span class="detail-value" id="modelType">Unknown</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Parameters:</span>
+                                <span class="detail-value" id="paramCount">Calculating...</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Layers:</span>
+                                <span class="detail-value" id="layerCount">Calculating...</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Size:</span>
+                                <span class="detail-value" id="modelSize">Unknown</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Export Menu -->
+                    <div class="export-menu" id="exportMenu">
+                        <div class="export-option" onclick="exportAsPNG()">📷 Export as PNG</div>
+                        <div class="export-option" onclick="exportAsSVG()">🎨 Export as SVG</div>
+                        <div class="export-option" onclick="exportAsPDF()">📄 Export as PDF</div>
+                        <div class="export-option" onclick="copyImageToClipboard()">📋 Copy to Clipboard</div>
+                    </div>
+                    
+                    <img id="zoomableImage" class="zoomable-image" 
+                         src="{{ image_url }}?{{ range(1, 100000) | random }}" 
+                         alt="Neural Network Structure"
+                         onload="initializeViewer()"
+                         draggable="false">
+                </div><div class="image-info">
+                    <strong>Controls:</strong> 
+                    🔍 Zoom: Scroll wheel, +/- keys, or slider • 
+                    🖱️ Pan: Click and drag • 
+                    ⌨️ Shortcuts: F (fullscreen), 0 (reset), Esc (exit fullscreen) • 
+                    📱 Mobile: Pinch to zoom, touch and drag
+                </div>
+            {% elif show_options %}
+                <div style="padding: 2rem; text-align: center;">
+                    <p class="placeholder-text">Select a model file from the dropdown above to generate and display its structure.</p>
+                </div>
+            {% else %}
+                <div style="padding: 2rem; text-align: center;">
+                    <p class="placeholder-text">No visualization available. Please select an option if available.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Fullscreen Overlay -->
+        <div class="fullscreen-overlay" id="fullscreenOverlay">
+            <div class="fullscreen-content">
+                <div class="fullscreen-controls">
+                    <div class="zoom-controls">
+                        <button class="ctrl-btn" onclick="fullscreenZoomOut()">🔍−</button>
+                        <input type="range" class="zoom-slider" id="fullscreenZoomSlider" min="10" max="500" value="100" oninput="updateFullscreenZoom(this.value)">
+                        <button class="ctrl-btn" onclick="fullscreenZoomIn()">🔍+</button>
+                        <div class="zoom-info" id="fullscreenZoomInfo">100%</div>
+                    </div>
+                    <div class="view-controls">
+                        <button class="ctrl-btn" onclick="resetFullscreenView()">🔄 Reset</button>
+                        <button class="ctrl-btn" onclick="fitFullscreenToWindow()">📐 Fit</button>
+                        <button class="close-fullscreen" onclick="exitFullscreen()">✕ Close</button>
+                    </div>
+                </div>
+                <div class="fullscreen-viewer" id="fullscreenViewer">
+                    <img id="fullscreenImage" class="fullscreen-image" 
+                         src="{% if image_url %}{{ image_url }}?{{ range(1, 100000) | random }}{% endif %}" 
+                         alt="Neural Network Structure"
+                         draggable="false">
+                </div>        </div>
+
+        <!-- Help Modal -->
+        <div class="help-overlay" id="helpOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.8); z-index: 10001; overflow-y: auto;">
+            <div style="max-width: 800px; margin: 2rem auto; background: white; border-radius: 8px; padding: 0; position: relative;">
+                <div style="background: linear-gradient(to right, #007bff, #0056b3); color: white; padding: 1rem 2rem; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="margin: 0; font-size: 1.5rem;">Neural Network Visualizer - User Guide</h2>
+                    <button onclick="hideHelp()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;">✕</button>
+                </div>
+                <div style="padding: 2rem; max-height: 70vh; overflow-y: auto;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                        <div>
+                            <h3 style="color: #007bff; margin-top: 0;">🎯 Basic Controls</h3>
+                            <ul style="line-height: 1.8;">
+                                <li><strong>Zoom:</strong> Mouse wheel, +/- buttons, or slider</li>
+                                <li><strong>Pan:</strong> Click and drag the image</li>
+                                <li><strong>Reset:</strong> 🔄 button or '0' key</li>
+                                <li><strong>Fit to Window:</strong> 📐 button</li>
+                                <li><strong>Fullscreen:</strong> ⛶ button, 'F' key, or double-click</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 style="color: #007bff; margin-top: 0;">⌨️ Keyboard Shortcuts</h3>
+                            <ul style="line-height: 1.8;">
+                                <li><strong>+/=:</strong> Zoom in</li>
+                                <li><strong>-:</strong> Zoom out</li>
+                                <li><strong>0:</strong> Reset view</li>
+                                <li><strong>F:</strong> Toggle fullscreen</li>
+                                <li><strong>Esc:</strong> Exit fullscreen</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                        <div>
+                            <h3 style="color: #007bff;">🗺️ Navigation Features</h3>
+                            <ul style="line-height: 1.8;">
+                                <li><strong>Minimap:</strong> Bird's eye view with click-to-navigate</li>
+                                <li><strong>Model Details:</strong> ℹ️ View layer count, parameters, etc.</li>
+                                <li><strong>Loading Indicator:</strong> Visual feedback during generation</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 style="color: #007bff;">📤 Export Options</h3>
+                            <ul style="line-height: 1.8;">
+                                <li><strong>PNG:</strong> High-quality raster image</li>
+                                <li><strong>SVG:</strong> Scalable vector graphics</li>
+                                <li><strong>PDF:</strong> Print-ready document</li>
+                                <li><strong>Clipboard:</strong> Copy image directly</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                        <div>
+                            <h3 style="color: #007bff;">📱 Mobile Support</h3>
+                            <ul style="line-height: 1.8;">
+                                <li><strong>Pinch to Zoom:</strong> Two-finger gesture</li>
+                                <li><strong>Touch Pan:</strong> Single finger drag</li>
+                                <li><strong>Responsive Design:</strong> Adapts to screen size</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 style="color: #007bff;">🔧 Model Types</h3>
+                            <ul style="line-height: 1.8;">
+                                <li><strong>Transformer Models:</strong> Multi-head attention layers</li>
+                                <li><strong>Simple Networks:</strong> Dense/Linear layers</li>
+                                <li><strong>State Dictionaries:</strong> Parameter-only models</li>
+                                <li><strong>Full Models:</strong> Complete PyTorch objects</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 6px; margin-top: 2rem;">
+                        <h3 style="color: #007bff; margin-top: 0;">💡 Pro Tips</h3>
+                        <ul style="line-height: 1.8; margin-bottom: 0;">
+                            <li>Use the minimap for quick navigation in large models</li>
+                            <li>Export as SVG for crisp scaling in presentations</li>
+                            <li>Use fullscreen mode for detailed analysis</li>
+                            <li>Model details panel shows architecture information</li>
+                            <li>All controls work in both normal and fullscreen modes</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+        
+        {% if show_options and not image_url %}
+        <div class="model-info">
+            <h3>How to use:</h3>
+            <p><strong>1.</strong> Select a .pt model file from the dropdown menu above</p>
+            <p><strong>2.</strong> Click "Visualize Selected" to generate the neural network diagram</p>
+            <p><strong>3.</strong> The visualization will show modules (layers) and their parameters with weights</p>
+            <br>
+            <p><strong>Model Types:</strong></p>
+            <ul>
+                <li><strong>Full Model (.pt):</strong> Complete PyTorch model with architecture and weights</li>
+                <li><strong>State Dict (.pt):</strong> Model parameters only, structure is reconstructed</li>
+            </ul>
+        </div>
+        {% endif %}
+    </div>    <footer class="footer">
+        <p>&copy; 2025 Neural Network Visualizer. Crafted with Flask, Graphviz & Love.</p>
+    </footer>
+
+    <script>
+        let currentZoom = 100;
+        let fullscreenZoom = 100;
+        let isDragging = false;
+        let startX, startY, scrollLeft, scrollTop;
+          // Initialize the viewer when image loads
+        function initializeViewer() {
+            const image = document.getElementById('zoomableImage');
+            const viewport = document.getElementById('imageViewport');
+            
+            // Set up mouse wheel zoom
+            viewport.addEventListener('wheel', handleWheel, { passive: false });
+            
+            // Set up drag to pan
+            setupDragToPan(viewport, image);
+            
+            // Set up touch events for mobile
+            setupTouchEvents(viewport, image);
+            
+            // Set up double-click for fullscreen
+            image.addEventListener('dblclick', toggleFullscreen);
+            
+            // Initially fit the image to viewport
+            setTimeout(fitToWindow, 100);
+        }
+        
+        // Set up touch events for mobile devices
+        function setupTouchEvents(viewport, image) {
+            let lastTouchDistance = 0;
+            let lastTouchCenter = { x: 0, y: 0 };
+            let touchStartDistance = 0;
+            let touchStartZoom = 100;
+            
+            viewport.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    // Pinch gesture
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    lastTouchDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) +
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                    touchStartDistance = lastTouchDistance;
+                    touchStartZoom = currentZoom;
+                    
+                    lastTouchCenter = {
+                        x: (touch1.clientX + touch2.clientX) / 2,
+                        y: (touch1.clientY + touch2.clientY) / 2
+                    };
+                } else if (e.touches.length === 1) {
+                    // Single touch for panning
+                    const touch = e.touches[0];
+                    isDragging = true;
+                    startX = touch.clientX - viewport.offsetLeft;
+                    startY = touch.clientY - viewport.offsetTop;
+                    scrollLeft = viewport.scrollLeft;
+                    scrollTop = viewport.scrollTop;
+                }
+                e.preventDefault();
+            }, { passive: false });
+            
+            viewport.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    // Pinch zoom
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const currentDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) +
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                    
+                    if (touchStartDistance > 0) {
+                        const scale = currentDistance / touchStartDistance;
+                        const newZoom = Math.max(10, Math.min(500, touchStartZoom * scale));
+                        updateZoom(newZoom);
+                        document.getElementById('zoomSlider').value = newZoom;
+                    }
+                } else if (e.touches.length === 1 && isDragging) {
+                    // Single finger pan
+                    const touch = e.touches[0];
+                    const x = touch.clientX - viewport.offsetLeft;
+                    const y = touch.clientY - viewport.offsetTop;
+                    const walkX = (x - startX) * 2;
+                    const walkY = (y - startY) * 2;
+                    viewport.scrollLeft = scrollLeft - walkX;
+                    viewport.scrollTop = scrollTop - walkY;
+                }
+                e.preventDefault();
+            }, { passive: false });
+            
+            viewport.addEventListener('touchend', (e) => {
+                isDragging = false;
+                if (e.touches.length === 0) {
+                    lastTouchDistance = 0;
+                    touchStartDistance = 0;
+                }
+                e.preventDefault();
+            }, { passive: false });
+        }
+        
+        // Handle mouse wheel for zooming
+        function handleWheel(e) {
+            e.preventDefault();
+            const delta = e.deltaY;
+            const zoomChange = delta > 0 ? -10 : 10;
+            const newZoom = Math.max(10, Math.min(500, currentZoom + zoomChange));
+            updateZoom(newZoom);
+            document.getElementById('zoomSlider').value = newZoom;
+        }
+        
+        // Set up drag to pan functionality
+        function setupDragToPan(viewport, image) {
+            viewport.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX - viewport.offsetLeft;
+                startY = e.clientY - viewport.offsetTop;
+                scrollLeft = viewport.scrollLeft;
+                scrollTop = viewport.scrollTop;
+            });
+            
+            viewport.addEventListener('mouseleave', () => {
+                isDragging = false;
+            });
+            
+            viewport.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+              viewport.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+                const x = e.clientX - viewport.offsetLeft;
+                const y = e.clientY - viewport.offsetTop;
+                const walkX = (x - startX) * 2;
+                const walkY = (y - startY) * 2;
+                viewport.scrollLeft = scrollLeft - walkX;
+                viewport.scrollTop = scrollTop - walkY;
+                updateMinimap();
+            });
+            
+            // Update minimap on scroll
+            viewport.addEventListener('scroll', updateMinimap);
+        }
+          // Zoom functions
+        function updateZoom(value) {
+            currentZoom = parseInt(value);
+            const image = document.getElementById('zoomableImage');
+            image.style.transform = `scale(${currentZoom / 100})`;
+            document.getElementById('zoomInfo').textContent = currentZoom + '%';
+            updateMinimap();
+        }
+        
+        function zoomIn() {
+            const newZoom = Math.min(500, currentZoom + 25);
+            updateZoom(newZoom);
+            document.getElementById('zoomSlider').value = newZoom;
+        }
+        
+        function zoomOut() {
+            const newZoom = Math.max(10, currentZoom - 25);
+            updateZoom(newZoom);
+            document.getElementById('zoomSlider').value = newZoom;
+        }
+        
+        function resetView() {
+            updateZoom(100);
+            document.getElementById('zoomSlider').value = 100;
+            const viewport = document.getElementById('imageViewport');
+            viewport.scrollLeft = 0;
+            viewport.scrollTop = 0;
+        }
+        
+        function fitToWindow() {
+            const image = document.getElementById('zoomableImage');
+            const viewport = document.getElementById('imageViewport');
+            
+            // Reset transform to get actual dimensions
+            image.style.transform = 'scale(1)';
+            
+            setTimeout(() => {
+                const imageRect = image.getBoundingClientRect();
+                const viewportRect = viewport.getBoundingClientRect();
+                
+                const scaleX = (viewportRect.width - 40) / imageRect.width;
+                const scaleY = (viewportRect.height - 40) / imageRect.height;
+                const scale = Math.min(scaleX, scaleY) * 100;
+                
+                const fitZoom = Math.max(10, Math.min(500, scale));
+                updateZoom(fitZoom);
+                document.getElementById('zoomSlider').value = fitZoom;
+                
+                // Center the image
+                viewport.scrollLeft = (image.scrollWidth - viewport.clientWidth) / 2;
+                viewport.scrollTop = (image.scrollHeight - viewport.clientHeight) / 2;
+            }, 10);
+        }
+        
+        // Fullscreen functions
+        function toggleFullscreen() {
+            const overlay = document.getElementById('fullscreenOverlay');
+            const image = document.getElementById('zoomableImage');
+            const fullscreenImage = document.getElementById('fullscreenImage');
+            
+            if (overlay.style.display === 'none' || !overlay.style.display) {
+                overlay.style.display = 'block';
+                fullscreenImage.src = image.src;
+                fullscreenZoom = 100;
+                document.getElementById('fullscreenZoomSlider').value = 100;
+                document.getElementById('fullscreenZoomInfo').textContent = '100%';
+                
+                // Set up fullscreen drag functionality
+                setupFullscreenDrag();
+                
+                // Prevent body scroll
+                document.body.style.overflow = 'hidden';
+                
+                setTimeout(fitFullscreenToWindow, 100);
+            }
+        }
+        
+        function exitFullscreen() {
+            document.getElementById('fullscreenOverlay').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+        
+        function setupFullscreenDrag() {
+            const viewer = document.getElementById('fullscreenViewer');
+            const image = document.getElementById('fullscreenImage');
+            
+            let fsIsDragging = false;
+            let fsStartX, fsStartY, fsScrollLeft, fsScrollTop;
+            
+            viewer.addEventListener('mousedown', (e) => {
+                fsIsDragging = true;
+                fsStartX = e.clientX - viewer.offsetLeft;
+                fsStartY = e.clientY - viewer.offsetTop;
+                fsScrollLeft = viewer.scrollLeft;
+                fsScrollTop = viewer.scrollTop;
+            });
+            
+            viewer.addEventListener('mouseleave', () => {
+                fsIsDragging = false;
+            });
+            
+            viewer.addEventListener('mouseup', () => {
+                fsIsDragging = false;
+            });
+            
+            viewer.addEventListener('mousemove', (e) => {
+                if (!fsIsDragging) return;
+                e.preventDefault();
+                const x = e.clientX - viewer.offsetLeft;
+                const y = e.clientY - viewer.offsetTop;
+                const walkX = (x - fsStartX) * 2;
+                const walkY = (y - fsStartY) * 2;
+                viewer.scrollLeft = fsScrollLeft - walkX;
+                viewer.scrollTop = fsScrollTop - walkY;
+            });
+            
+            // Wheel zoom for fullscreen
+            viewer.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY;
+                const zoomChange = delta > 0 ? -10 : 10;
+                const newZoom = Math.max(10, Math.min(500, fullscreenZoom + zoomChange));
+                updateFullscreenZoom(newZoom);
+                document.getElementById('fullscreenZoomSlider').value = newZoom;
+            }, { passive: false });
+        }
+        
+        function updateFullscreenZoom(value) {
+            fullscreenZoom = parseInt(value);
+            const image = document.getElementById('fullscreenImage');
+            image.style.transform = `scale(${fullscreenZoom / 100})`;
+            document.getElementById('fullscreenZoomInfo').textContent = fullscreenZoom + '%';
+        }
+        
+        function fullscreenZoomIn() {
+            const newZoom = Math.min(500, fullscreenZoom + 25);
+            updateFullscreenZoom(newZoom);
+            document.getElementById('fullscreenZoomSlider').value = newZoom;
+        }
+        
+        function fullscreenZoomOut() {
+            const newZoom = Math.max(10, fullscreenZoom - 25);
+            updateFullscreenZoom(newZoom);
+            document.getElementById('fullscreenZoomSlider').value = newZoom;
+        }
+        
+        function resetFullscreenView() {
+            updateFullscreenZoom(100);
+            document.getElementById('fullscreenZoomSlider').value = 100;
+            const viewer = document.getElementById('fullscreenViewer');
+            viewer.scrollLeft = 0;
+            viewer.scrollTop = 0;
+        }
+        
+        function fitFullscreenToWindow() {
+            const image = document.getElementById('fullscreenImage');
+            const viewer = document.getElementById('fullscreenViewer');
+            
+            // Reset transform to get actual dimensions
+            image.style.transform = 'scale(1)';
+            
+            setTimeout(() => {
+                const imageRect = image.getBoundingClientRect();
+                const viewerRect = viewer.getBoundingClientRect();
+                
+                const scaleX = (viewerRect.width * 0.9) / imageRect.width;
+                const scaleY = (viewerRect.height * 0.9) / imageRect.height;
+                const scale = Math.min(scaleX, scaleY) * 100;
+                
+                const fitZoom = Math.max(10, Math.min(500, scale));
+                updateFullscreenZoom(fitZoom);
+                document.getElementById('fullscreenZoomSlider').value = fitZoom;
+            }, 10);
+        }
+          // Download image function
+        function downloadImage() {
+            const image = document.getElementById('zoomableImage');
+            const link = document.createElement('a');
+            link.href = image.src;
+            link.download = 'neural_network_visualization.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        // Minimap functionality
+        let minimapVisible = false;
+        
+        function toggleMinimap() {
+            const minimap = document.getElementById('minimapContainer');
+            minimapVisible = !minimapVisible;
+            
+            if (minimapVisible) {
+                minimap.classList.add('active');
+                updateMinimap();
+                setupMinimapEvents();
+            } else {
+                minimap.classList.remove('active');
+            }
+        }
+        
+        function updateMinimap() {
+            if (!minimapVisible) return;
+            
+            const viewport = document.getElementById('imageViewport');
+            const image = document.getElementById('zoomableImage');
+            const minimapViewport = document.getElementById('minimapViewport');
+            const minimap = document.getElementById('minimapContainer');
+            
+            // Calculate viewport position and size relative to the image
+            const imageRect = image.getBoundingClientRect();
+            const viewportRect = viewport.getBoundingClientRect();
+            const minimapRect = minimap.getBoundingClientRect();
+            
+            // Calculate scale factors
+            const scaleX = minimapRect.width / (imageRect.width / (currentZoom / 100));
+            const scaleY = minimapRect.height / (imageRect.height / (currentZoom / 100));
+            
+            // Calculate viewport position on minimap
+            const viewportX = (viewport.scrollLeft / (imageRect.width / (currentZoom / 100))) * minimapRect.width;
+            const viewportY = (viewport.scrollTop / (imageRect.height / (currentZoom / 100))) * minimapRect.height;
+            
+            // Calculate viewport size on minimap
+            const viewportWidth = (viewportRect.width / (imageRect.width / (currentZoom / 100))) * minimapRect.width;
+            const viewportHeight = (viewportRect.height / (imageRect.height / (currentZoom / 100))) * minimapRect.height;
+            
+            // Update minimap viewport indicator
+            minimapViewport.style.left = Math.max(0, viewportX) + 'px';
+            minimapViewport.style.top = Math.max(0, viewportY) + 'px';
+            minimapViewport.style.width = Math.min(minimapRect.width, viewportWidth) + 'px';
+            minimapViewport.style.height = Math.min(minimapRect.height, viewportHeight) + 'px';
+        }
+        
+        function setupMinimapEvents() {
+            const minimap = document.getElementById('minimapContainer');
+            const viewport = document.getElementById('imageViewport');
+            const image = document.getElementById('zoomableImage');
+            
+            minimap.addEventListener('click', (e) => {
+                const minimapRect = minimap.getBoundingClientRect();
+                const clickX = e.clientX - minimapRect.left;
+                const clickY = e.clientY - minimapRect.top;
+                
+                // Calculate corresponding position in main viewport
+                const imageRect = image.getBoundingClientRect();
+                const scrollX = (clickX / minimapRect.width) * (imageRect.width / (currentZoom / 100)) - viewport.clientWidth / 2;
+                const scrollY = (clickY / minimapRect.height) * (imageRect.height / (currentZoom / 100)) - viewport.clientHeight / 2;
+                
+                viewport.scrollLeft = Math.max(0, scrollX);
+                viewport.scrollTop = Math.max(0, scrollY);
+                  updateMinimap();
+            });
+        }
+        
+        // Model details functionality
+        let detailsVisible = false;
+        
+        function toggleDetails() {
+            const panel = document.getElementById('detailsPanel');
+            detailsVisible = !detailsVisible;
+            
+            if (detailsVisible) {
+                panel.classList.add('active');
+                updateModelDetails();
+            } else {
+                panel.classList.remove('active');
+            }
+        }
+        
+        function updateModelDetails() {
+            // Get model information from the page
+            const modelName = "{{ model_name or 'Unknown' }}";
+            const image = document.getElementById('zoomableImage');
+            
+            // Extract model type from model name
+            let modelType = 'Unknown';
+            if (modelName.includes('Transformer')) {
+                modelType = 'Transformer';
+            } else if (modelName.includes('Simple NN')) {
+                modelType = 'Simple Neural Network';
+            } else if (modelName.includes('Full Model')) {
+                modelType = 'Complete PyTorch Model';
+            } else if (modelName.includes('State Dict')) {
+                modelType = 'State Dictionary';
+            }
+            
+            // Extract parameter count if available
+            let paramCount = 'Unknown';
+            const paramMatch = modelName.match(/(\d{1,3}(?:,\d{3})*|\d+)[KMB]?/);
+            if (paramMatch) {
+                paramCount = paramMatch[0];
+            }
+            
+            // Extract layer count if available
+            let layerCount = 'Unknown';
+            const layerMatch = modelName.match(/(\d+) layers?/);
+            if (layerMatch) {
+                layerCount = layerMatch[1];
+            }
+            
+            // Get image dimensions
+            let imageSize = 'Unknown';
+            if (image.naturalWidth && image.naturalHeight) {
+                imageSize = `${image.naturalWidth} × ${image.naturalHeight}`;
+            }
+            
+            // Update the panel
+            document.getElementById('modelType').textContent = modelType;
+            document.getElementById('paramCount').textContent = paramCount;
+            document.getElementById('layerCount').textContent = layerCount;
+            document.getElementById('modelSize').textContent = imageSize;
+        }
+        
+        // Export functionality
+        let exportMenuVisible = false;
+        
+        function toggleExportMenu() {
+            const menu = document.getElementById('exportMenu');
+            exportMenuVisible = !exportMenuVisible;
+            
+            if (exportMenuVisible) {
+                menu.classList.add('active');
+                // Close menu when clicking outside
+                setTimeout(() => {
+                    document.addEventListener('click', closeExportMenu);
+                }, 100);
+            } else {
+                menu.classList.remove('active');
+                document.removeEventListener('click', closeExportMenu);
+            }
+        }
+        
+        function closeExportMenu(e) {
+            const menu = document.getElementById('exportMenu');
+            if (!menu.contains(e.target)) {
+                menu.classList.remove('active');
+                exportMenuVisible = false;
+                document.removeEventListener('click', closeExportMenu);
+            }
+        }
+        
+        function exportAsPNG() {
+            const image = document.getElementById('zoomableImage');
+            const link = document.createElement('a');
+            link.href = image.src;
+            link.download = 'neural_network_diagram.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toggleExportMenu();
+        }
+        
+        function exportAsSVG() {
+            // Request SVG version from server
+            const currentUrl = new URL(window.location);
+            const modelFile = currentUrl.searchParams.get('model_file') || new URLSearchParams(window.location.search).get('model_file');
+            
+            if (modelFile) {
+                const svgUrl = `/export_svg?model_file=${encodeURIComponent(modelFile)}`;
+                const link = document.createElement('a');
+                link.href = svgUrl;
+                link.download = 'neural_network_diagram.svg';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            toggleExportMenu();
+        }
+        
+        function exportAsPDF() {
+            // Open print dialog for PDF export
+            window.print();
+            toggleExportMenu();
+        }
+        
+        async function copyImageToClipboard() {
+            try {
+                const image = document.getElementById('zoomableImage');
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                canvas.width = image.naturalWidth;
+                canvas.height = image.naturalHeight;
+                
+                ctx.drawImage(image, 0, 0);
+                
+                canvas.toBlob(async (blob) => {
+                    const item = new ClipboardItem({ 'image/png': blob });
+                    await navigator.clipboard.write([item]);
+                    
+                    // Show feedback
+                    const originalText = document.querySelector('.export-option:last-child').textContent;
+                    document.querySelector('.export-option:last-child').textContent = '✅ Copied!';
+                    setTimeout(() => {
+                        document.querySelector('.export-option:last-child').textContent = originalText;
+                    }, 2000);
+                });
+            } catch (err) {
+                console.error('Failed to copy image: ', err);                alert('Failed to copy image to clipboard');
+            }
+            toggleExportMenu();
+        }
+          // Help modal functions
+        function showHelp() {
+            document.getElementById('helpOverlay').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function hideHelp() {
+            document.getElementById('helpOverlay').style.display = 'none';
+            document.body.style.overflow = 'auto';        }
+        
+        // Navigation to different views
+        function goto3DView() {
+            const selectedModel = document.getElementById('modelFileSelect').value;
+            if (selectedModel) {
+                window.location.href = `/visualize_3d?model_file=${encodeURIComponent(selectedModel)}`;
+            } else {
+                window.location.href = '/visualize_3d';
+            }
+        }
+        
+        function gotoHierarchicalView() {
+            const selectedModel = document.getElementById('modelFileSelect').value;
+            if (selectedModel) {
+                window.location.href = `/visualize_hierarchical?model_file=${encodeURIComponent(selectedModel)}`;
+            } else {
+                window.location.href = '/visualize_hierarchical';
+            }
+        }
+        
+        function gotoForceView() {
+            const selectedModel = document.getElementById('modelFileSelect').value;
+            if (selectedModel) {
+                window.location.href = `/visualize_force?model_file=${encodeURIComponent(selectedModel)}`;
+            } else {
+                window.location.href = '/visualize_force';
+            }
+        }
+        
+        function gotoInteractiveView() {
+            const selectedModel = document.getElementById('modelFileSelect').value;
+            if (selectedModel) {
+                window.location.href = `/visualize_interactive?model_file=${encodeURIComponent(selectedModel)}`;
+            } else {
+                window.location.href = '/visualize_interactive';
+            }
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Only handle shortcuts when fullscreen is active or image is visible
+            const isFullscreen = document.getElementById('fullscreenOverlay').style.display === 'block';
+            const hasImage = document.getElementById('zoomableImage');
+            
+            if (!isFullscreen && !hasImage) return;
+            
+            switch(e.key) {
+                case 'Escape':
+                    if (isFullscreen) exitFullscreen();
+                    break;
+                case '=':
+                case '+':
+                    e.preventDefault();
+                    if (isFullscreen) fullscreenZoomIn();
+                    else zoomIn();
+                    break;
+                case '-':
+                    e.preventDefault();
+                    if (isFullscreen) fullscreenZoomOut();
+                    else zoomOut();
+                    break;
+                case '0':
+                    e.preventDefault();
+                    if (isFullscreen) resetFullscreenView();
+                    else resetView();
+                    break;                case 'f':
+                case 'F':
+                    if (!isFullscreen) toggleFullscreen();
+                    break;
+                case 'h':
+                case 'H':
+                case '?':
+                    e.preventDefault();
+                    showHelp();
+                    break;
+            }
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (document.getElementById('fullscreenOverlay').style.display === 'block') {
+                setTimeout(fitFullscreenToWindow, 100);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force-Directed View - Neural Network Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow: hidden;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }        .navbar h1 {
+            color: #4a5568;
+            font-size: 1.5rem;
+            font-weight: 600;
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-shrink: 1;
+        }
+
+        .view-toggles {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+
+        .view-btn {
+            padding: 0.5rem 0.8rem;
+            border: 2px solid #667eea;
+            background: transparent;
+            color: #667eea;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        .view-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .view-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .container {
+            margin-top: 80px;
+            height: calc(100vh - 80px);
+            display: flex;
+        }
+
+        .controls-panel {
+            width: 300px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem;
+            box-shadow: 2px 0 20px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+
+        .visualization-area {
+            flex: 1;
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group h3 {
+            color: #4a5568;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .control-item {
+            margin-bottom: 1rem;
+        }
+
+        .control-item label {
+            display: block;
+            margin-bottom: 0.3rem;
+            font-weight: 500;
+            color: #2d3748;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e2e8f0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            background: white;
+            font-size: 0.9rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.7rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .node-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            max-width: 300px;
+            display: none;
+        }
+
+        .legend {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            margin-top: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .stats {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            margin-top: 1rem;
+        }
+
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.3rem;
+        }
+
+        #forceGraph {
+            width: 100%;
+            height: 100%;
+        }
+
+        .force-link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+        }
+
+        .force-node {
+            stroke: #fff;
+            stroke-width: 2px;
+            cursor: pointer;
+        }
+
+        .force-node:hover {
+            stroke-width: 4px;
+        }
+
+        .node-label {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 10px;
+            fill: #333;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .controls-panel {
+                width: 100%;
+                height: 200px;
+            }
+            .visualization-area {
+                height: calc(100vh - 280px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>Force-Directed Neural Network View</h1>        <div class="view-toggles">
+            <a href="/" class="view-btn">2D View</a>
+            <a href="/visualize_3d" class="view-btn">3D View</a>
+            <a href="/visualize_hierarchical" class="view-btn">Hierarchical</a>
+            <a href="/visualize_force" class="view-btn active">Force-Directed</a>
+            <a href="/visualize_interactive" class="view-btn">Interactive</a>
+            <a href="/analytics_dashboard" class="view-btn">Analytics</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="controls-panel">
+            <div class="control-group">
+                <h3>Model Selection</h3>                <div class="control-item">
+                    <label for="modelSelect">Choose Model:</label>
+                    <select id="modelSelect" onchange="loadModel()">
+                        <option value="">Select a model...</option>
+                        {% for model_file in model_files %}
+                        <option value="{{ model_file }}">{{ model_file }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Force Simulation</h3>
+                <div class="control-item">
+                    <label for="linkStrength">Link Strength: <span id="linkStrengthValue">1</span></label>
+                    <input type="range" id="linkStrength" class="slider" min="0.1" max="2" step="0.1" value="1" oninput="updateForceSettings()">
+                </div>
+                <div class="control-item">
+                    <label for="chargeStrength">Charge Strength: <span id="chargeStrengthValue">-300</span></label>
+                    <input type="range" id="chargeStrength" class="slider" min="-1000" max="-50" step="50" value="-300" oninput="updateForceSettings()">
+                </div>
+                <div class="control-item">
+                    <label for="centerStrength">Center Force: <span id="centerStrengthValue">0.1</span></label>
+                    <input type="range" id="centerStrength" class="slider" min="0" max="1" step="0.05" value="0.1" oninput="updateForceSettings()">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Visual Settings</h3>
+                <div class="control-item">
+                    <label for="nodeSize">Node Size: <span id="nodeSizeValue">8</span></label>
+                    <input type="range" id="nodeSize" class="slider" min="3" max="20" step="1" value="8" oninput="updateVisualSettings()">
+                </div>
+                <div class="control-item">
+                    <label for="linkDistance">Link Distance: <span id="linkDistanceValue">50</span></label>
+                    <input type="range" id="linkDistance" class="slider" min="20" max="150" step="10" value="50" oninput="updateForceSettings()">
+                </div>
+                <div class="control-item">
+                    <label>
+                        <input type="checkbox" id="showLabels" checked onchange="toggleLabels()"> Show Node Labels
+                    </label>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>Actions</h3>
+                <button onclick="restartSimulation()">Restart Simulation</button>
+                <button onclick="exportGraph()">Export as PNG</button>
+                <button onclick="resetView()">Reset View</button>
+            </div>
+
+            <div class="legend">
+                <h3>Layer Types</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4CAF50;"></div>
+                    <span>Input Layers</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #2196F3;"></div>
+                    <span>Hidden Layers</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #FF9800;"></div>
+                    <span>Output Layers</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #9C27B0;"></div>
+                    <span>Activation Functions</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #607D8B;"></div>
+                    <span>Other Components</span>
+                </div>
+            </div>
+
+            <div class="stats" id="modelStats" style="display: none;">
+                <h3>Model Statistics</h3>
+                <div class="stats-item">
+                    <span>Nodes:</span>
+                    <span id="nodeCount">0</span>
+                </div>
+                <div class="stats-item">
+                    <span>Edges:</span>
+                    <span id="edgeCount">0</span>
+                </div>
+                <div class="stats-item">
+                    <span>Parameters:</span>
+                    <span id="paramCount">0</span>
+                </div>
+                <div class="stats-item">
+                    <span>Model Type:</span>
+                    <span id="modelType">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="visualization-area">
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner"></div>
+                <p>Loading neural network structure...</p>
+            </div>
+            <svg id="forceGraph"></svg>
+            <div class="node-info" id="nodeInfo">
+                <h4 id="nodeTitle">Node Information</h4>
+                <div id="nodeDetails"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let simulation;
+        let svg;
+        let link, node, label;
+        let currentData = null;
+        let width, height;
+
+        // Initialize the visualization
+        function initializeForceGraph() {
+            const container = document.querySelector('.visualization-area');
+            width = container.clientWidth;
+            height = container.clientHeight;
+
+            svg = d3.select('#forceGraph')
+                .attr('width', width)
+                .attr('height', height);
+
+            // Add zoom behavior
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on('zoom', function(event) {
+                    svg.selectAll('g').attr('transform', event.transform);
+                });
+
+            svg.call(zoom);
+
+            // Create main group for zoomable content
+            svg.append('g').attr('class', 'main-group');
+        }
+
+        // Load model data
+        async function loadModel() {
+            const modelName = document.getElementById('modelSelect').value;
+            if (!modelName) return;
+
+            showLoading(true);
+
+            try {
+                const response = await fetch(`/api/model_data_3d?model_file=${encodeURIComponent(modelName)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                currentData = data;
+                updateModelStats(data);
+                createForceGraph(data);
+                showLoading(false);
+            } catch (error) {
+                console.error('Error loading model:', error);
+                showLoading(false);
+                alert('Error loading model: ' + error.message);
+            }
+        }
+
+        // Create force-directed graph
+        function createForceGraph(data) {
+            const mainGroup = svg.select('.main-group');
+            mainGroup.selectAll('*').remove();
+
+            // Create simulation
+            simulation = d3.forceSimulation(data.nodes)
+                .force('link', d3.forceLink(data.edges).id(d => d.id).distance(50))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(20));
+
+            // Create links
+            link = mainGroup.append('g')
+                .selectAll('line')
+                .data(data.edges)
+                .enter().append('line')
+                .attr('class', 'force-link')
+                .attr('stroke-width', d => Math.sqrt(d.weight || 1) * 2);
+
+            // Create nodes
+            node = mainGroup.append('g')
+                .selectAll('circle')
+                .data(data.nodes)
+                .enter().append('circle')
+                .attr('class', 'force-node')
+                .attr('r', d => Math.sqrt((d.size || 1) * 50) + 5)
+                .attr('fill', d => getNodeColor(d.type))
+                .on('mouseover', handleNodeMouseOver)
+                .on('mouseout', handleNodeMouseOut)
+                .on('click', handleNodeClick)
+                .call(drag());
+
+            // Create labels
+            label = mainGroup.append('g')
+                .selectAll('text')
+                .data(data.nodes)
+                .enter().append('text')
+                .attr('class', 'node-label')
+                .text(d => d.label || d.name)
+                .style('opacity', document.getElementById('showLabels').checked ? 1 : 0);
+
+            // Update positions on tick
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                node
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
+
+                label
+                    .attr('x', d => d.x)
+                    .attr('y', d => d.y + 5);
+            });
+        }
+
+        // Get node color based on type
+        function getNodeColor(type) {
+            const colors = {
+                'input': '#4CAF50',
+                'hidden': '#2196F3',
+                'output': '#FF9800',
+                'activation': '#9C27B0',
+                'linear': '#2196F3',
+                'conv': '#00BCD4',
+                'pool': '#795548',
+                'dropout': '#607D8B',
+                'batchnorm': '#E91E63',
+                'default': '#607D8B'
+            };
+            return colors[type?.toLowerCase()] || colors.default;
+        }
+
+        // Drag behavior
+        function drag() {
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+            return d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended);
+        }
+
+        // Event handlers
+        function handleNodeMouseOver(event, d) {
+            // Highlight connected nodes
+            const connectedNodes = new Set();
+            connectedNodes.add(d.id);
+            
+            currentData.edges.forEach(edge => {
+                if (edge.source.id === d.id) connectedNodes.add(edge.target.id);
+                if (edge.target.id === d.id) connectedNodes.add(edge.source.id);
+            });
+
+            node.style('opacity', n => connectedNodes.has(n.id) ? 1 : 0.3);
+            link.style('opacity', l => 
+                l.source.id === d.id || l.target.id === d.id ? 1 : 0.1);
+        }
+
+        function handleNodeMouseOut(event, d) {
+            node.style('opacity', 1);
+            link.style('opacity', 0.6);
+        }
+
+        function handleNodeClick(event, d) {
+            showNodeInfo(d);
+        }
+
+        function showNodeInfo(node) {
+            const nodeInfo = document.getElementById('nodeInfo');
+            const nodeTitle = document.getElementById('nodeTitle');
+            const nodeDetails = document.getElementById('nodeDetails');
+
+            nodeTitle.textContent = node.label || node.name;
+            
+            let details = `
+                <p><strong>Type:</strong> ${node.type || 'Unknown'}</p>
+                <p><strong>ID:</strong> ${node.id}</p>
+            `;
+
+            if (node.params) {
+                details += `<p><strong>Parameters:</strong> ${node.params.toLocaleString()}</p>`;
+            }
+
+            if (node.input_size) {
+                details += `<p><strong>Input Size:</strong> ${node.input_size}</p>`;
+            }
+
+            if (node.output_size) {
+                details += `<p><strong>Output Size:</strong> ${node.output_size}</p>`;
+            }
+
+            if (node.details) {
+                details += `<p><strong>Details:</strong></p>`;
+                Object.entries(node.details).forEach(([key, value]) => {
+                    details += `<p style="margin-left: 15px;"><strong>${key}:</strong> ${value}</p>`;
+                });
+            }
+
+            nodeDetails.innerHTML = details;
+            nodeInfo.style.display = 'block';
+
+            // Hide after 5 seconds
+            setTimeout(() => {
+                nodeInfo.style.display = 'none';
+            }, 5000);
+        }
+
+        // Control functions
+        function updateForceSettings() {
+            if (!simulation) return;
+
+            const linkStrength = parseFloat(document.getElementById('linkStrength').value);
+            const chargeStrength = parseFloat(document.getElementById('chargeStrength').value);
+            const centerStrength = parseFloat(document.getElementById('centerStrength').value);
+            const linkDistance = parseFloat(document.getElementById('linkDistance').value);
+
+            document.getElementById('linkStrengthValue').textContent = linkStrength;
+            document.getElementById('chargeStrengthValue').textContent = chargeStrength;
+            document.getElementById('centerStrengthValue').textContent = centerStrength;
+            document.getElementById('linkDistanceValue').textContent = linkDistance;
+
+            simulation
+                .force('link').strength(linkStrength).distance(linkDistance)
+                .force('charge').strength(chargeStrength)
+                .force('center').strength(centerStrength);
+
+            simulation.alpha(0.3).restart();
+        }
+
+        function updateVisualSettings() {
+            if (!node) return;
+
+            const nodeSize = parseFloat(document.getElementById('nodeSize').value);
+            document.getElementById('nodeSizeValue').textContent = nodeSize;
+
+            node.attr('r', d => (Math.sqrt((d.size || 1) * 50) + 5) * (nodeSize / 8));
+        }
+
+        function toggleLabels() {
+            const showLabels = document.getElementById('showLabels').checked;
+            if (label) {
+                label.style('opacity', showLabels ? 1 : 0);
+            }
+        }
+
+        function restartSimulation() {
+            if (simulation) {
+                simulation.alpha(1).restart();
+            }
+        }
+
+        function resetView() {
+            svg.transition().duration(750).call(
+                d3.zoom().transform,
+                d3.zoomIdentity
+            );
+        }
+
+        function exportGraph() {
+            const svgElement = document.getElementById('forceGraph');
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            img.onload = function() {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                
+                const link = document.createElement('a');
+                link.download = 'force_graph.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            };
+            
+            img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+        }
+
+        function updateModelStats(data) {
+            document.getElementById('nodeCount').textContent = data.nodes.length;
+            document.getElementById('edgeCount').textContent = data.edges.length;
+            document.getElementById('paramCount').textContent = 
+                data.metadata?.total_parameters?.toLocaleString() || 'N/A';
+            document.getElementById('modelType').textContent = 
+                data.metadata?.model_type || 'Unknown';
+            document.getElementById('modelStats').style.display = 'block';
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeForceGraph();
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                const container = document.querySelector('.visualization-area');
+                width = container.clientWidth;
+                height = container.clientHeight;
+                
+                svg.attr('width', width).attr('height', height);
+                
+                if (simulation) {
+                    simulation.force('center', d3.forceCenter(width / 2, height / 2));
+                    simulation.alpha(0.3).restart();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
