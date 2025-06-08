@@ -69,6 +69,7 @@ The **NN Analytics Dashboard** is now the default home page, providing comprehen
 
 ![Analytics Dashboard - Advanced Features](docs/analytics-dashboard-advanced.png)
 ![image](https://github.com/user-attachments/assets/379a431c-5056-4a99-9e68-752a9d6d9407)
+<img width="935" alt="image" src="https://github.com/user-attachments/assets/e968754f-4559-447e-96e8-3d23f72fb38a" />
 
 *Advanced analytics including memory analysis, optimization suggestions, health checks, and training insights*
 
